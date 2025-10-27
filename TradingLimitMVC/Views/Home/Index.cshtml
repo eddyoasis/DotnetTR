@@ -1,0 +1,341 @@
+﻿@model TradingLimitMVC.Models.ViewModels.DashboardViewModel
+
+@{
+    ViewData["Title"] = "Dashboard";
+}
+
+<style>
+    .dashboard-header {
+        margin-bottom: 2rem;
+    }
+
+    .dashboard-title {
+        font-size: 2rem;
+        font-weight: 700;
+        color: var(--text-primary);
+        margin-bottom: 0.5rem;
+    }
+
+    .dashboard-subtitle {
+        color: var(--text-secondary);
+        font-size: 1rem;
+    }
+
+    /* Quick Actions Section */
+    .quick-actions-card {
+        margin-bottom: 2rem;
+    }
+
+    .action-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 1.5rem;
+    }
+
+    .action-btn {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 2rem 1.5rem;
+        border-radius: 16px;
+        text-decoration: none;
+        color: white;
+        font-weight: 600;
+        transition: all 0.3s ease;
+        position: relative;
+        overflow: hidden;
+        min-height: 180px;
+    }
+
+        .action-btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(135deg, rgba(255,255,255,0.1), rgba(255,255,255,0));
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .action-btn:hover::before {
+            opacity: 1;
+        }
+
+        .action-btn:hover {
+            transform: translateY(-8px) scale(1.02);
+            box-shadow: 0 12px 30px rgba(0, 0, 0, 0.2);
+            color: white;
+        }
+
+    .action-btn-primary {
+        background: linear-gradient(135deg, #0066cc, #004499);
+        box-shadow: 0 6px 20px rgba(0, 102, 204, 0.3);
+    }
+
+    .action-btn-success {
+        background: linear-gradient(135deg, #28a745, #20c997);
+        box-shadow: 0 6px 20px rgba(40, 167, 69, 0.3);
+    }
+
+    .action-btn-warning {
+        background: linear-gradient(135deg, #ffc107, #ff9800);
+        box-shadow: 0 6px 20px rgba(255, 193, 7, 0.3);
+    }
+
+    .action-icon {
+        font-size: 3rem;
+        margin-bottom: 1rem;
+        position: relative;
+        z-index: 1;
+    }
+
+    .action-title {
+        font-size: 1.25rem;
+        font-weight: 700;
+        margin-bottom: 0.5rem;
+        position: relative;
+        z-index: 1;
+    }
+
+    .action-subtitle {
+        font-size: 0.9rem;
+        opacity: 0.9;
+        position: relative;
+        z-index: 1;
+    }
+
+    /* Stats Cards */
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 1.5rem;
+        margin-bottom: 2rem;
+    }
+
+    .stat-card {
+        background: white;
+        border-radius: 16px;
+        padding: 1.5rem;
+        box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+        transition: all 0.3s ease;
+        border-left: 4px solid var(--primary-color);
+    }
+
+        .stat-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+        }
+
+    .stat-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 1rem;
+    }
+
+    .stat-icon {
+        width: 50px;
+        height: 50px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+        color: white;
+    }
+
+    .stat-icon-primary {
+        background: linear-gradient(135deg, #0066cc, #004499);
+    }
+
+    .stat-icon-success {
+        background: linear-gradient(135deg, #28a745, #20c997);
+    }
+
+    .stat-icon-warning {
+        background: linear-gradient(135deg, #ffc107, #ff9800);
+    }
+
+    .stat-icon-info {
+        background: linear-gradient(135deg, #17a2b8, #138496);
+    }
+
+    .stat-content h3 {
+        font-size: 2rem;
+        font-weight: 700;
+        color: var(--text-primary);
+        margin: 0;
+    }
+
+    .stat-content p {
+        color: var(--text-secondary);
+        margin: 0;
+        font-size: 0.9rem;
+        font-weight: 500;
+    }
+
+    /* Recent Activity */
+    .activity-item {
+        display: flex;
+        align-items: center;
+        padding: 1rem;
+        background: #f8f9fa;
+        border-radius: 10px;
+        margin-bottom: 0.75rem;
+        transition: all 0.3s ease;
+    }
+
+        .activity-item:hover {
+            background: #e9ecef;
+            transform: translateX(5px);
+        }
+
+    .activity-icon {
+        width: 40px;
+        height: 40px;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-right: 1rem;
+        color: white;
+        font-size: 1.1rem;
+    }
+
+    .activity-content {
+        flex: 1;
+    }
+
+    .activity-title {
+        font-weight: 600;
+        color: var(--text-primary);
+        margin-bottom: 0.25rem;
+    }
+
+    .activity-time {
+        font-size: 0.85rem;
+        color: var(--text-secondary);
+    }
+
+    @@media (max-width: 768px) {
+        .action-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .stats-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .dashboard-title {
+            font-size: 1.5rem;
+        }
+
+        .action-btn {
+            min-height: 150px;
+        }
+
+        .action-icon {
+            font-size: 2.5rem;
+        }
+    }
+
+    .action-btn-polist {
+        background: linear-gradient(135deg, #a72833, #c92079);
+        box-shadow: 0 6px 20px rgba(167 40 64 / 30%);
+    }
+</style>
+
+<!-- Dashboard Header -->
+
+<div class="dashboard-header">
+    <h1 class="dashboard-title">
+        <i class="fas fa-tachometer-alt me-2"></i>Dashboard
+    </h1>
+    <p class="dashboard-subtitle">Welcome back! Here's what's happening with your purchase system today.</p>
+</div>
+
+
+<!-- Quick Actions -->
+
+<div class="card quick-actions-card">
+    <div class="card-header">
+        <i class="fas fa-bolt"></i>
+        Quick Actions
+    </div>
+    <div class="card-body">
+        <div class="action-grid">
+            <a asp-controller="PurchaseRequisition" asp-action="Create" class="action-btn action-btn-primary">
+                <div class="action-icon">
+                    <i class="fas fa-plus-circle"></i>
+                </div>
+                <div class="action-title">Create New PR</div>
+                <div class="action-subtitle">Purchase Requisition</div>
+            </a>
+            <a asp-controller="PurchaseRequisition" asp-action="Index" class="action-btn action-btn-success">
+                <div class="action-icon">
+                    <i class="fas fa-receipt"></i>
+                </div>
+                <div class="action-title">PR List</div>
+                <div class="action-subtitle">Purchase Requisition List</div>
+            </a>
+
+            <a asp-controller="PurchaseOrder" asp-action="Index" class="action-btn action-btn-polist">
+                <div class="action-icon">
+                    <i class="fas fa-receipt"></i>
+                </div>
+                <div class="action-title">PO List</div>
+                <div class="action-subtitle">Purchase Order List</div>
+            </a>
+
+            <a asp-controller="PurchaseRequisitionApproval" asp-action="Index" class="action-btn action-btn-warning">
+                <div class="action-icon">
+                    <i class="fas fa-check-double"></i>
+                </div>
+                <div class="action-title">PR Approvals</div>
+                <div class="action-subtitle">Review & Approve</div>
+            </a>
+        </div>
+    </div>
+
+
+</div>
+@section Scripts {
+    <script>
+        $(document).ready(function() {
+        // Animate stat numbers
+        $(’.stat-number’).each(function() {
+        var $this = $(this);
+        var countTo = parseInt($this.text()) || 0;
+
+
+                    $({ countNum: 0 }).animate({
+                        countNum: countTo
+                    }, {
+                        duration: 1500,
+                        easing: 'swing',
+                        step: function() {
+                            $this.text(Math.floor(this.countNum));
+                        },
+                        complete: function() {
+                            $this.text(this.countNum);
+                        }
+                    });
+                });
+
+                // Add ripple effect to action buttons
+                $('.action-btn').on('click', function(e) {
+                    var ripple = $('<span class="ripple"></span>');
+                    $(this).append(ripple);
+
+                    setTimeout(function() {
+                        ripple.remove();
+                    }, 600);
+                });
+            });
+    </script>
+
+
+}

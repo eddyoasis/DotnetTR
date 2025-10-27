@@ -1,0 +1,89 @@
+﻿@model IEnumerable<TradingLimitMVC.Models.SystemSetting>
+
+@{
+    ViewData["Title"] = "Approval Thresholds";
+}
+
+<style>
+    .admin-container {
+        background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+        min-height: 100vh;
+        padding: 20px 0;
+    }
+
+    .admin-card {
+        background: white;
+        border-radius: 15px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        margin: 20px auto;
+        max-width: 1000px;
+    }
+
+    .header-section {
+        background: linear-gradient(135deg, #f093fb, #f5576c);
+        color: white;
+        padding: 30px;
+        text-align: center;
+        border-radius: 15px 15px 0 0;
+    }
+</style>
+
+<div class="admin-container">
+    <div class="admin-card">
+        <div class="header-section">
+            <h1>Approval Threshold Configuration</h1>
+            <p>Define SGD thresholds for approval routing</p>
+        </div>
+
+        <div style="padding: 30px;">
+            @if (TempData["Success"] != null)
+            {
+                <div class="alert alert-success">@TempData["Success"]</div>
+            }
+
+            <table class="rate-table">
+                <thead>
+                    <tr>
+                        <th>Approver Level</th>
+                        <th>Threshold (SGD)</th>
+                        <th>Description</th>
+                        <th>Last Updated</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var setting in Model)
+                    {
+                        var level = setting.Key.Replace("_Threshold_SGD", "");
+                        <tr>
+                            <td><strong>@level</strong></td>
+                            <td>
+                                <form asp-action="UpdateThreshold" method="post" id="form_@setting.Id" style="display: contents;">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="key" value="@setting.Key" />
+                            <td>
+                                <div style="display: flex; align-items: center; gap: 5px;">
+                                    <span>SGD</span>
+                                    <input type="number" step="0.01" name="value"
+                                           value="@setting.Value" class="rate-input" required />
+                                </div>
+                            </td>
+                            <td>
+                                <input type="text" name="description"
+                                       value="@setting.Description"
+                                       style="width: 100%; padding: 8px; border: 1px solid #dee2e6; border-radius: 4px;" />
+                            </td>
+                            <td>@setting.UpdatedDate.ToString("MMM dd, yyyy")</td>
+                            <td>
+                                <button type="submit" class="btn-update">Update</button>
+                            </td>
+                            </form>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+
+            </table>
+        </div>
+    </div>
+</div>

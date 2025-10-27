@@ -1,0 +1,38 @@
+﻿@model ErrorViewModel
+@{
+    ViewData["Title"] = "Error";
+}
+
+<div class="text-center">
+    <h1 class="display-1 text-danger">
+        <i class="fas fa-exclamation-triangle"></i>
+    </h1>
+    <h2 class="display-4">Oops! Something went wrong</h2>
+    <p class="lead">We're sorry, but an error occurred while processing your request.</p>
+
+
+    @if (Model.ShowRequestId)
+    {
+        <div class="alert alert-secondary mt-4">
+            <strong>Request ID:</strong> <code>@Model.RequestId</code>
+        </div>
+    }
+
+    <div class="mt-4">
+        <a asp-controller="Home" asp-action="Index" class="btn btn-primary">
+            <i class="fas fa-home me-2"></i>Return to Dashboard
+        </a>
+        <button onclick="history.back()" class="btn btn-secondary ms-2">
+            <i class="fas fa-arrow-left me-2"></i>Go Back
+        </button>
+    </div>
+
+
+</div>
+
+<!-- Views/Shared/_ValidationScriptsPartial.cshtml -->
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-validate/1.19.5/jquery.validate.min.js"></script>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-validation-unobtrusive/3.2.12/jquery.validate.unobtrusive.min.js"></script>
+

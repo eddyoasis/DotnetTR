@@ -1,0 +1,152 @@
+﻿@model IEnumerable<TradingLimitMVC.Models.SystemSetting>
+
+@{
+    ViewData["Title"] = "Exchange Rate Configuration";
+}
+
+<style>
+    .admin-container {
+        background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+        min-height: 100vh;
+        padding: 20px 0;
+    }
+
+    .admin-card {
+        background: white;
+        border-radius: 15px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        margin: 20px auto;
+        max-width: 1000px;
+        overflow: hidden;
+    }
+
+    .header-section {
+        background: linear-gradient(135deg, #667eea, #764ba2);
+        color: white;
+        padding: 30px;
+        text-align: center;
+    }
+
+    .rate-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 20px 0;
+    }
+
+        .rate-table th {
+            background: #667eea;
+            color: white;
+            padding: 15px;
+            text-align: left;
+        }
+
+        .rate-table td {
+            padding: 15px;
+            border-bottom: 1px solid #dee2e6;
+        }
+
+        .rate-table tr:hover {
+            background: #f8f9fa;
+        }
+
+    .rate-input {
+        width: 150px;
+        padding: 8px;
+        border: 2px solid #dee2e6;
+        border-radius: 8px;
+    }
+
+    .btn-update {
+        background: linear-gradient(45deg, #28a745, #20c997);
+        color: white;
+        border: none;
+        padding: 8px 20px;
+        border-radius: 20px;
+        cursor: pointer;
+        font-weight: 600;
+    }
+
+        .btn-update:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(40, 167, 69, 0.3);
+        }
+</style>
+
+<div class="admin-container">
+    <div class="admin-card">
+        <div class="header-section">
+            <h1>Exchange Rate Configuration</h1>
+            <p>Manage currency conversion rates to SGD (base currency)</p>
+        </div>
+
+        <div style="padding: 30px;">
+            @if (TempData["Success"] != null)
+            {
+                <div class="alert alert-success">@TempData["Success"]</div>
+            }
+            @if (TempData["Error"] != null)
+            {
+                <div class="alert alert-danger">@TempData["Error"]</div>
+            }
+
+            <table class="rate-table">
+                <thead>
+                    <tr>
+                        <th>Currency</th>
+                        <th>Exchange Rate to SGD</th>
+                        <th>Description</th>
+                        <th>Last Updated</th>
+                        <th>Updated By</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var setting in Model)
+                    {
+                        var currency = setting.Key.Replace("ExchangeRate_", "").Replace("_to_SGD", "");
+                        <tr>
+                            <form asp-action="UpdateExchangeRate" method="post" style="display: contents;">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="currency" value="@currency" />
+                            <td><strong>@currency</strong></td>
+                            <td>
+                                <input type="number" step="0.0001" name="rate"
+                                       value="@setting.Value" class="rate-input" required />
+                            </td>
+                            <td>
+                                <input type="text" name="description"
+                                       value="@setting.Description"
+                                       style="width: 100%; padding: 8px; border: 1px solid #dee2e6; border-radius: 4px;" />
+                            </td>
+                            <td>@setting.UpdatedDate.ToString("MMM dd, yyyy HH:mm")</td>
+                            <td>@setting.UpdatedBy</td>
+                            <td>
+                                <button type="submit" class="btn-update">Update</button>
+                            </td>
+                            </form>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+
+            <div style="margin-top: 30px; padding: 20px; background: #fff3cd; border-radius: 10px; border-left: 4px solid #ffc107;">
+                <h6 style="color: #856404; margin-bottom: 10px;"><i class="fas fa-info-circle"></i> Important Notes:</h6>
+                <ul style="color: #856404; margin: 0;">
+                    <li>All exchange rates are normalized to SGD as the base currency</li>
+                    <li>SGD to SGD is always 1.0000 (cannot be changed)</li>
+                    <li>Rates should be updated periodically based on corporate finance guidance</li>
+                    <li>These rates are used for approval routing threshold calculations</li>
+                </ul>
+            </div>
+
+            <div style="text-align: center; margin-top: 30px;">
+                <a href="@Url.Action("ApprovalThresholds")" class="btn btn-primary">
+                    <i class="fas fa-cog"></i> Manage Approval Thresholds
+                </a>
+                <a href="@Url.Action("Index", "Home")" class="btn btn-secondary">
+                    <i class="fas fa-arrow-left"></i> Back to Home
+                </a>
+            </div>
+        </div>
+    </div>
+</div>

@@ -1,0 +1,16 @@
+﻿################################################################################
+# This .gitignore file was automatically created by Microsoft(R) Visual Studio.
+################################################################################
+
+/.vs
+/TradingLimitMVC/bin/Debug/net8.0
+/TradingLimitMVC/obj
+/TradingLimitMVC/Properties/PublishProfiles
+/TradingLimitMVC/appsettings.json
+/TradingLimitMVC/wwwroot/generated-pdfs
+
+bin/
+obj/
+.vs/
+*.user
+*.suo

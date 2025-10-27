@@ -1,0 +1,342 @@
+﻿@model TradingLimitMVC.Models.ViewModels.POIndexViewModel
+@{
+    ViewData["Title"] = "Purchase Orders";
+}
+
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col">
+            <h2>
+                <i class="fas fa-shopping-cart"></i> Purchase Orders
+                <span class="badge bg-secondary">@Model.TotalCount</span>
+            </h2>
+        </div>
+        <div class="col text-end">
+            <a asp-action="Create" class="btn btn-primary">
+                <i class="fas fa-plus"></i> Create New PO
+            </a>
+        </div>
+    </div>
+
+    <!-- Filter Section -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="mb-0">
+                <i class="fas fa-filter"></i> Filters
+                <button class="btn btn-sm btn-link float-end" type="button" data-bs-toggle="collapse" data-bs-target="#filterCollapse">
+                    <i class="fas fa-chevron-down"></i>
+                </button>
+            </h5>
+        </div>
+        <div class="collapse show" id="filterCollapse">
+            <div class="card-body">
+                <form asp-action="Index" method="get" id="filterForm">
+                    <div class="row g-3">
+                        <!-- PO Reference -->
+                        <div class="col-md-3">
+                            <label class="form-label">PO Reference</label>
+                            <input type="text" class="form-control" name="POReference" value="@Model.Filters.POReference" placeholder="Search PO..." />
+                        </div>
+
+                        <!-- PR Reference -->
+                        <div class="col-md-3">
+                            <label class="form-label">PR Reference</label>
+                            <input type="text" class="form-control" name="PRReference" value="@Model.Filters.PRReference" placeholder="Search PR..." />
+                        </div>
+
+                        <!-- Vendor -->
+                        <div class="col-md-3">
+                            <label class="form-label">Vendor</label>
+                            <select class="form-select" name="Vendor">
+                                <option value="">All Vendors</option>
+                                @foreach (var vendor in Model.Vendors)
+                                {
+                                    <option value="@vendor" selected="@(Model.Filters.Vendor == vendor)">@vendor</option>
+                                }
+                            </select>
+                        </div>
+
+                        <!-- Status -->
+                        <div class="col-md-3">
+                            <label class="form-label">Status</label>
+                            <select class="form-select" name="Status">
+                                <option value="">All Statuses</option>
+                                @foreach (POWorkflowStatus status in Enum.GetValues(typeof(POWorkflowStatus)))
+                                {
+                                    <option value="@status" selected="@(Model.Filters.Status == status)">@status</option>
+                                }
+                            </select>
+                        </div>
+
+                        <!-- Company -->
+                        <div class="col-md-3">
+                            <label class="form-label">Company</label>
+                            <select class="form-select" name="Company">
+                                <option value="">All Companies</option>
+                                @foreach (var company in Model.Companies)
+                                {
+                                    <option value="@company" selected="@(Model.Filters.Company == company)">@company</option>
+                                }
+                            </select>
+                        </div>
+
+                        <!-- PO Originator -->
+                        <div class="col-md-3">
+                            <label class="form-label">PO Originator</label>
+                            <input type="text" class="form-control" name="POOriginator" value="@Model.Filters.POOriginator" placeholder="Originator..." />
+                        </div>
+
+                        <!-- Date From -->
+                        <div class="col-md-3">
+                            <label class="form-label">Date From</label>
+                            <input type="date" class="form-control" name="DateFrom" value="@Model.Filters.DateFrom?.ToString("yyyy-MM-dd")" />
+                        </div>
+
+                        <!-- Date To -->
+                        <div class="col-md-3">
+                            <label class="form-label">Date To</label>
+                            <input type="date" class="form-control" name="DateTo" value="@Model.Filters.DateTo?.ToString("yyyy-MM-dd")" />
+                        </div>
+
+                        <!-- Amount Range -->
+                        <div class="col-md-3">
+                            <label class="form-label">Amount Range</label>
+                            <div class="input-group">
+                                <input type="number" class="form-control" name="AmountFrom" value="@Model.Filters.AmountFrom" placeholder="Min" step="0.01" />
+                                <span class="input-group-text">-</span>
+                                <input type="number" class="form-control" name="AmountTo" value="@Model.Filters.AmountTo" placeholder="Max" step="0.01" />
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row mt-3">
+                        <div class="col">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-search"></i> Apply Filters
+                            </button>
+                            <a asp-action="Index" class="btn btn-secondary">
+                                <i class="fas fa-times"></i> Clear Filters
+                            </a>
+                        </div>
+                    </div>
+
+                    <!-- Hidden fields for sorting and pagination -->
+                    <input type="hidden" name="SortBy" value="@Model.Filters.SortBy" />
+                    <input type="hidden" name="SortOrder" value="@Model.Filters.SortOrder" />
+                    <input type="hidden" name="PageSize" value="@Model.Filters.PageSize" />
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Results Section -->
+    <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <span>
+                Showing @((Model.Filters.PageNumber - 1) * Model.Filters.PageSize + 1)
+                to @(Math.Min(Model.Filters.PageNumber * Model.Filters.PageSize, Model.TotalCount))
+                of @Model.TotalCount results
+            </span>
+            <div>
+                <label>Show:</label>
+                <select class="form-select form-select-sm d-inline-block w-auto" onchange="changePageSize(this.value)">
+                    <option value="10" selected="@(Model.Filters.PageSize == 10)">10</option>
+                    <option value="25" selected="@(Model.Filters.PageSize == 25)">25</option>
+                    <option value="50" selected="@(Model.Filters.PageSize == 50)">50</option>
+                    <option value="100" selected="@(Model.Filters.PageSize == 100)">100</option>
+                </select>
+            </div>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover table-striped mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>
+                                <a href="#" onclick="sortTable('POReference')">
+                                    PO Reference
+                                    @if (Model.Filters.SortBy == "POReference")
+                                    {
+                                        <i class="fas fa-sort-@(Model.Filters.SortOrder == "asc" ? "up" : "down")"></i>
+                                    }
+                                </a>
+                            </th>
+                            <th>
+                                <a href="#" onclick="sortTable('PRReference')">
+                                    PR Reference
+                                    @if (Model.Filters.SortBy == "PRReference")
+                                    {
+                                        <i class="fas fa-sort-@(Model.Filters.SortOrder == "asc" ? "up" : "down")"></i>
+                                    }
+                                </a>
+                            </th>
+                            <th>
+                                <a href="#" onclick="sortTable('Vendor')">
+                                    Vendor
+                                    @if (Model.Filters.SortBy == "Vendor")
+                                    {
+                                        <i class="fas fa-sort-@(Model.Filters.SortOrder == "asc" ? "up" : "down")"></i>
+                                    }
+                                </a>
+                            </th>
+                            <th>
+                                <a href="#" onclick="sortTable('POOriginator')">
+                                    Originator
+                                    @if (Model.Filters.SortBy == "POOriginator")
+                                    {
+                                        <i class="fas fa-sort-@(Model.Filters.SortOrder == "asc" ? "up" : "down")"></i>
+                                    }
+                                </a>
+                            </th>
+                            <th>
+                                <a href="#" onclick="sortTable('IssueDate')">
+                                    Issue Date
+                                    @if (Model.Filters.SortBy == "IssueDate" || string.IsNullOrEmpty(Model.Filters.SortBy))
+                                    {
+                                        <i class="fas fa-sort-@(Model.Filters.SortOrder == "asc" ? "up" : "down")"></i>
+                                    }
+                                </a>
+                            </th>
+                            <th>Amount</th>
+                            <th>
+                                <a href="#" onclick="sortTable('Status')">
+                                    Status
+                                    @if (Model.Filters.SortBy == "Status")
+                                    {
+                                        <i class="fas fa-sort-@(Model.Filters.SortOrder == "asc" ? "up" : "down")"></i>
+                                    }
+                                </a>
+                            </th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (Model.PurchaseOrders.Any())
+                        {
+                            @foreach (var po in Model.PurchaseOrders)
+                            {
+                                var totalAmount = po.Items?.Sum(i => i.Amount) ?? 0;
+                                <tr>
+                                    <td><strong>@po.POReference</strong></td>
+                                    <td>@po.PRReference</td>
+                                    <td>@po.Vendor</td>
+                                    <td>@po.POOriginator</td>
+                                    <td>@po.IssueDate.ToString("dd MMM yyyy")</td>
+                                    <td>SGD @totalAmount.ToString("N2")</td>
+                                    <td>
+                                        @{
+                                            var statusClass = po.CurrentStatus switch
+                                            {
+                                                POWorkflowStatus.Completed => "success",
+                                                POWorkflowStatus.Cancelled => "danger",
+                                                POWorkflowStatus.PendingApproval => "warning",
+                                                POWorkflowStatus.Draft => "secondary",
+                                                _ => "info"
+                                            };
+                                        }
+                                        <span class="badge bg-@statusClass">@po.CurrentStatus</span>
+                                    </td>
+                                    <td>
+                                        <a asp-action="Details" asp-route-id="@po.Id" class="btn btn-sm btn-info" title="View Details">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                        @* @if (po.CurrentStatus == POWorkflowStatus.Draft)
+                                        {
+                                            <a asp-action="Edit" asp-route-id="@po.Id" class="btn btn-sm btn-warning" title="Edit">
+                                                <i class="fas fa-edit"></i>
+                                            </a>
+                                        } *@
+                                        <a asp-action="DownloadPDF" asp-route-id="@po.Id" class="btn btn-sm btn-danger" title="Download PDF">
+                                            <i class="fas fa-file-pdf"></i>
+                                        </a>
+                                    </td>
+                                </tr>
+                            }
+                        }
+                        else
+                        {
+                            <tr>
+                                <td colspan="8" class="text-center py-4">
+                                    <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
+                                    <p class="text-muted">No purchase orders found matching your filters.</p>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Pagination -->
+        @if (Model.TotalPages > 1)
+        {
+            <div class="card-footer">
+                <nav>
+                    <ul class="pagination justify-content-center mb-0">
+                        <li class="page-item @(Model.Filters.PageNumber == 1 ? "disabled" : "")">
+                            <a class="page-link" href="#" onclick="changePage(1)">First</a>
+                        </li>
+                        <li class="page-item @(Model.Filters.PageNumber == 1 ? "disabled" : "")">
+                            <a class="page-link" href="#" onclick="changePage(@(Model.Filters.PageNumber - 1))">Previous</a>
+                        </li>
+
+                        @for (int i = Math.Max(1, Model.Filters.PageNumber - 2); i <= Math.Min(Model.TotalPages, Model.Filters.PageNumber + 2); i++)
+                        {
+                            <li class="page-item @(i == Model.Filters.PageNumber ? "active" : "")">
+                                <a class="page-link" href="#" onclick="changePage(@i)">@i</a>
+                            </li>
+                        }
+
+                        <li class="page-item @(Model.Filters.PageNumber == Model.TotalPages ? "disabled" : "")">
+                            <a class="page-link" href="#" onclick="changePage(@(Model.Filters.PageNumber + 1))">Next</a>
+                        </li>
+                        <li class="page-item @(Model.Filters.PageNumber == Model.TotalPages ? "disabled" : "")">
+                            <a class="page-link" href="#" onclick="changePage(@Model.TotalPages)">Last</a>
+                        </li>
+                    </ul>
+                </nav>
+            </div>
+        }
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        function sortTable(column) {
+            const form = document.getElementById('filterForm');
+            const sortByInput = form.querySelector('input[name="SortBy"]');
+            const sortOrderInput = form.querySelector('input[name="SortOrder"]');
+
+            if (sortByInput.value === column) {
+                sortOrderInput.value = sortOrderInput.value === 'asc' ? 'desc' : 'asc';
+            } else {
+                sortByInput.value = column;
+                sortOrderInput.value = 'asc';
+            }
+
+            form.submit();
+        }
+
+        function changePage(pageNumber) {
+            const form = document.getElementById('filterForm');
+            const input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = 'PageNumber';
+            input.value = pageNumber;
+            form.appendChild(input);
+            form.submit();
+        }
+
+        function changePageSize(pageSize) {
+            const form = document.getElementById('filterForm');
+            const input = form.querySelector('input[name="PageSize"]') || document.createElement('input');
+            input.type = 'hidden';
+            input.name = 'PageSize';
+            input.value = pageSize;
+            if (!form.contains(input)) {
+                form.appendChild(input);
+            }
+            form.submit();
+        }
+    </script>
+}
