@@ -14,9 +14,11 @@ namespace TradingLimitMVC.Services
         Task<TradingLimitRequest> UpdateAsync(TradingLimitRequest tradingLimitRequest);
         Task<bool> DeleteAsync(int id);
         Task<string> GenerateRequestIdAsync();
-        Task<bool> SubmitAsync(int id, string submittedBy);
+        Task<bool> SubmitAsync(int id, string submittedBy, string approvalEmail);
+        Task<bool> SubmitWithMultiApprovalAsync(int id, string submittedBy, List<ApprovalStepRequest> approvers, string workflowType = "Sequential");
         Task<IEnumerable<TradingLimitRequest>> GetByStatusAsync(string status);
         Task<IEnumerable<TradingLimitRequest>> GetByUserAsync(string userName);
+        Task<IEnumerable<TradingLimitRequest>> GetPendingApprovalsForUserAsync(string userEmail);
         Task<bool> AddAttachmentAsync(int requestId, TradingLimitRequestAttachment attachment);
         Task<bool> RemoveAttachmentAsync(int attachmentId);
         Task<TradingLimitRequestAttachment?> GetAttachmentAsync(int attachmentId);
@@ -28,15 +30,20 @@ namespace TradingLimitMVC.Services
         private readonly ILogger<TradingLimitRequestService> _logger;
         private readonly IEmailService _emailService;
         private readonly IOptionsSnapshot<GeneralAppSetting> _generalAppSetting;
+        private readonly IApprovalWorkflowService _approvalWorkflowService;
 
         public TradingLimitRequestService(
             IEmailService emailService,
             IOptionsSnapshot<GeneralAppSetting> generalAppSetting,
             ApplicationDbContext context,
-            ILogger<TradingLimitRequestService> logger)
+            ILogger<TradingLimitRequestService> logger,
+            IApprovalWorkflowService approvalWorkflowService)
         {
             _context = context;
             _logger = logger;
+            _emailService = emailService;
+            _generalAppSetting = generalAppSetting;
+            _approvalWorkflowService = approvalWorkflowService;
         }
 
         public async Task<IEnumerable<TradingLimitRequest>> GetAllAsync()
@@ -170,7 +177,7 @@ namespace TradingLimitMVC.Services
             }
         }
 
-        public async Task<bool> SubmitAsync(int id, string submittedBy)
+        public async Task<bool> SubmitAsync(int id, string submittedBy, string approvalEmail)
         {
             try
             {
@@ -184,6 +191,7 @@ namespace TradingLimitMVC.Services
                 request.Status = "Submitted";
                 request.SubmittedDate = DateTime.Now;
                 request.SubmittedBy = submittedBy;
+                request.ApprovalEmail = approvalEmail;
                 request.ModifiedDate = DateTime.Now;
                 request.ModifiedBy = submittedBy;
 
@@ -195,6 +203,39 @@ namespace TradingLimitMVC.Services
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error submitting trading limit request with ID {Id}", id);
+                throw;
+            }
+        }
+
+        public async Task<bool> SubmitWithMultiApprovalAsync(int id, string submittedBy, List<ApprovalStepRequest> approvers, string workflowType = "Sequential")
+        {
+            try
+            {
+                var request = await _context.TradingLimitRequests.FindAsync(id);
+                if (request == null)
+                {
+                    _logger.LogWarning("Trading limit request with ID {Id} not found for submission", id);
+                    return false;
+                }
+
+                // Update request status
+                request.Status = "Submitted";
+                request.SubmittedDate = DateTime.UtcNow;
+                request.SubmittedBy = submittedBy;
+                request.ModifiedDate = DateTime.UtcNow;
+                request.ModifiedBy = submittedBy;
+
+                // Create multi-approval workflow
+                var workflow = await _approvalWorkflowService.CreateWorkflowAsync(id, approvers, workflowType);
+
+                await _context.SaveChangesAsync();
+
+                _logger.LogInformation("Trading limit request with ID {Id} submitted with multi-approval workflow by {SubmittedBy}", id, submittedBy);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error submitting trading limit request with multi-approval workflow for ID {Id}", id);
                 throw;
             }
         }
@@ -323,5 +364,19 @@ namespace TradingLimitMVC.Services
 
         //    await _emailService.SendEmailAsync(recipientsTo, recipientsCC, subject, body);
         //}
+
+        public async Task<IEnumerable<TradingLimitRequest>> GetPendingApprovalsForUserAsync(string userEmail)
+        {
+            try
+            {
+                // Use the approval workflow service which handles both multi-approval and legacy single approval
+                return await _approvalWorkflowService.GetPendingApprovalsForUserAsync(userEmail);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting pending approvals for user {UserEmail}", userEmail);
+                throw;
+            }
+        }
     }
 }

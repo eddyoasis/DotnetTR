@@ -357,12 +357,14 @@
             <div class="btn-group">
                 @if (Model.Status == "Draft")
                 {
-                    <form asp-action="Submit" asp-route-id="@Model.Id" method="post" style="display: inline;">
-                        @Html.AntiForgeryToken()
-                        <button type="submit" class="btn btn-success" onclick="return confirm('Are you sure you want to submit this request?')">
-                            <i class="fas fa-paper-plane"></i> Submit Request
-                        </button>
-                    </form>
+                    <div class="btn-group" role="group" aria-label="Submit Options">
+                        <a asp-action="Submit" asp-route-id="@Model.Id" class="btn btn-success">
+                            <i class="fas fa-user-check"></i> Single Approver
+                        </a>
+                        <a asp-action="SubmitMultiApproval" asp-route-id="@Model.Id" class="btn btn-primary">
+                            <i class="fas fa-users-cog"></i> Multi-Approver Workflow
+                        </a>
+                    </div>
                     <a asp-action="Edit" asp-route-id="@Model.Id" class="btn btn-warning">
                         <i class="fas fa-edit"></i> Edit
                     </a>

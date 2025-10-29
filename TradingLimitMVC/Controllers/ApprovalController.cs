@@ -12,17 +12,20 @@ namespace TradingLimitMVC.Controllers
     {
         private readonly ApplicationDbContext _context;
         private readonly ITradingLimitRequestService _tradingLimitRequestService;
+        private readonly IApprovalWorkflowService _approvalWorkflowService;
         private readonly ILogger<ApprovalController> _logger;
         private readonly IGeneralService _generalService;
 
         public ApprovalController(
             ApplicationDbContext context,
             ITradingLimitRequestService tradingLimitRequestService,
+            IApprovalWorkflowService approvalWorkflowService,
             ILogger<ApprovalController> logger,
             IGeneralService generalService)
         {
             _context = context;
             _tradingLimitRequestService = tradingLimitRequestService;
+            _approvalWorkflowService = approvalWorkflowService;
             _logger = logger;
             _generalService = generalService;
         }
@@ -33,9 +36,9 @@ namespace TradingLimitMVC.Controllers
         public async Task<IActionResult> Index()
         {
             try
-        {
+            {
                 var currentUser = await _generalService.GetCurrentUserEmailAsync();
-                var pendingRequests = await GetPendingApprovalsForUserAsync(currentUser);
+                var pendingRequests = await _tradingLimitRequestService.GetPendingApprovalsForUserAsync(currentUser);
                 
                 return View(pendingRequests);
             }
@@ -258,51 +261,29 @@ namespace TradingLimitMVC.Controllers
 
         #region Helper Methods
 
-        private async Task<List<TradingLimitRequest>> GetPendingApprovalsForUserAsync(string userEmail)
-        {
-            // Get requests that are pending approval and user has permission to approve
-            var pendingStatuses = new[] { "Submitted", "Pending Approval" };
-            
-            var requests = await _context.TradingLimitRequests
-                .Where(r => pendingStatuses.Contains(r.Status))
-                .Include(r => r.Attachments)
-                .OrderByDescending(r => r.SubmittedDate)
-                .ToListAsync();
 
-            // Filter based on user approval permissions
-            var approvableRequests = new List<TradingLimitRequest>();
-            foreach (var request in requests)
-            {
-                if (await CanUserApproveRequestAsync(userEmail, request))
-                {
-                    approvableRequests.Add(request);
-                }
-            }
-
-            return approvableRequests;
-        }
 
         private async Task<bool> CanUserApproveRequestAsync(string userEmail, TradingLimitRequest request)
         {
-            // Implement approval permission logic based on your business rules
-            // For now, we'll check if user is not the creator and has appropriate role
-            
-            if (string.IsNullOrEmpty(userEmail) || request.CreatedBy?.Equals(userEmail, StringComparison.OrdinalIgnoreCase) == true)
+            // Check if user email matches the approval email assigned to this request
+            if (string.IsNullOrEmpty(userEmail) || string.IsNullOrEmpty(request.ApprovalEmail))
             {
-                return false; // User cannot approve their own requests
+                return false;
             }
 
-            var userJobTitle = await _generalService.GetCurrentUserJobTitleAsync();
-            var userDepartment = await _generalService.GetCurrentUserDepartmentAsync();
+            // Check if the current user's email matches the assigned approval email
+            if (!userEmail.Equals(request.ApprovalEmail, StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
 
-            // Define approval hierarchy based on amount or other criteria
-            // This is a simplified example - you should implement your actual business rules
-            var isManager = userJobTitle.Contains("Manager", StringComparison.OrdinalIgnoreCase) ||
-                           userJobTitle.Contains("Director", StringComparison.OrdinalIgnoreCase) ||
-                           userJobTitle.Contains("Head", StringComparison.OrdinalIgnoreCase) ||
-                           userJobTitle.Contains("HOD", StringComparison.OrdinalIgnoreCase);
+            // Additional check: user cannot approve their own requests
+            if (request.CreatedBy?.Equals(userEmail, StringComparison.OrdinalIgnoreCase) == true)
+            {
+                return false;
+            }
 
-            return isManager;
+            return true;
         }
 
         private Task AddApprovalRecordAsync(int requestId, string approverEmail, string approverName, string action, string? comments)
@@ -367,6 +348,110 @@ namespace TradingLimitMVC.Controllers
             return Task.CompletedTask;
         }
 
+        // POST: Approval/ApprovalStep/{stepId}/Approve
+        [HttpPost("ApprovalStep/{stepId}/Approve")]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> ApproveStep(int stepId, string? comments = null)
+        {
+            try
+            {
+                var currentUser = await _generalService.GetCurrentUserEmailAsync();
+                
+                var canApprove = await _approvalWorkflowService.CanUserApproveStepAsync(stepId, currentUser);
+                if (!canApprove)
+                {
+                    return Json(new { success = false, message = "You are not authorized to approve this step." });
+                }
+
+                var success = await _approvalWorkflowService.ProcessApprovalStepAsync(stepId, currentUser, "Approved", comments);
+                
+                if (success)
+                {
+                    return Json(new { success = true, message = "Step approved successfully." });
+                }
+                else
+                {
+                    return Json(new { success = false, message = "Error processing approval step." });
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error approving step {StepId}", stepId);
+                return Json(new { success = false, message = "An error occurred while processing the approval." });
+            }
+        }
+
+        // POST: Approval/ApprovalStep/{stepId}/Reject
+        [HttpPost("ApprovalStep/{stepId}/Reject")]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> RejectStep(int stepId, string comments)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(comments))
+                {
+                    return Json(new { success = false, message = "Comments are required when rejecting." });
+                }
+
+                var currentUser = await _generalService.GetCurrentUserEmailAsync();
+                
+                var canApprove = await _approvalWorkflowService.CanUserApproveStepAsync(stepId, currentUser);
+                if (!canApprove)
+                {
+                    return Json(new { success = false, message = "You are not authorized to reject this step." });
+                }
+
+                var success = await _approvalWorkflowService.ProcessApprovalStepAsync(stepId, currentUser, "Rejected", comments);
+                
+                if (success)
+                {
+                    return Json(new { success = true, message = "Step rejected successfully." });
+                }
+                else
+                {
+                    return Json(new { success = false, message = "Error processing rejection." });
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error rejecting step {StepId}", stepId);
+                return Json(new { success = false, message = "An error occurred while processing the rejection." });
+            }
+        }
+
+        // GET: Approval/ApprovalStep/{stepId}
+        [HttpGet("ApprovalStep/{stepId}")]
+        public async Task<IActionResult> ApprovalStepDetails(int stepId)
+        {
+            try
+            {
+                var step = await _approvalWorkflowService.GetApprovalStepAsync(stepId);
+                if (step == null)
+                {
+                    TempData["ErrorMessage"] = "Approval step not found.";
+                    return RedirectToAction("Index");
+                }
+
+                var currentUser = await _generalService.GetCurrentUserEmailAsync();
+                var canApprove = await _approvalWorkflowService.CanUserApproveStepAsync(stepId, currentUser);
+
+                var viewModel = new ApprovalStepViewModel
+                {
+                    Step = step,
+                    CanApprove = canApprove,
+                    CurrentUserEmail = currentUser
+                };
+
+                return View(viewModel);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error loading approval step {StepId}", stepId);
+                TempData["ErrorMessage"] = "An error occurred while loading the approval step.";
+                return RedirectToAction("Index");
+            }
+        }
+
         #endregion
     }
 
@@ -385,5 +470,12 @@ namespace TradingLimitMVC.Controllers
         public int RequestId { get; set; }
         public string? Comments { get; set; }
         public string? ReturnUrl { get; set; }
+    }
+
+    public class ApprovalStepViewModel
+    {
+        public ApprovalStep Step { get; set; } = new();
+        public bool CanApprove { get; set; }
+        public string CurrentUserEmail { get; set; } = string.Empty;
     }
 }

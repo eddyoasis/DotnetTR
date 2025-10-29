@@ -1,0 +1,260 @@
+@model TradingLimitMVC.Models.ViewModels.SubmitRequestViewModel
+
+@{
+    ViewData["Title"] = "Submit Request for Approval";
+}
+
+<div class="container-fluid">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <!-- Breadcrumb -->
+            <nav aria-label="breadcrumb" class="mb-3">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item">
+                        <a href="@Url.Action("Index")" class="text-decoration-none">
+                            <i class="fas fa-list me-1"></i>Requests
+                        </a>
+                    </li>
+                    <li class="breadcrumb-item">
+                        <a href="@Url.Action("Details", new { id = Model.Id })" class="text-decoration-none">
+                            @Model.Request?.RequestId
+                        </a>
+                    </li>
+                    <li class="breadcrumb-item active" aria-current="page">Submit for Approval</li>
+                </ol>
+            </nav>
+
+            <!-- Header -->
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h1 class="page-title mb-2">
+                        <i class="fas fa-paper-plane text-primary me-2"></i>
+                        Submit Request for Approval
+                    </h1>
+                    <p class="text-muted mb-0">Assign an approver and submit your trading limit request</p>
+                </div>
+                <a href="@Url.Action("Details", new { id = Model.Id })" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left me-1"></i>
+                    Back to Details
+                </a>
+            </div>
+
+            <!-- Request Summary Card -->
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-light border-bottom py-3">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-file-contract me-2 text-info"></i>
+                        Request Summary
+                    </h5>
+                </div>
+                <div class="card-body p-4">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label text-muted">Request ID</label>
+                            <div class="fw-bold">@Model.Request?.RequestId</div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label text-muted">Client Code</label>
+                            <div class="fw-bold">@Model.Request?.ClientCode</div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label text-muted">Request Type</label>
+                            <div class="fw-bold">@Model.Request?.RequestType</div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label text-muted">Proposed GL Limit</label>
+                            <div class="fw-bold text-success">@Model.Request?.GLProposedLimit.ToString("C")</div>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label text-muted">Brief Description</label>
+                            <div class="p-3 bg-light rounded">
+                                @(string.IsNullOrEmpty(Model.Request?.BriefDescription) ? "No description provided" : Model.Request.BriefDescription)
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Submit Form Card -->
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-primary text-white py-3">
+                    <h5 class="card-title mb-0 text-white">
+                        <i class="fas fa-user-check me-2"></i>
+                        Approval Assignment
+                    </h5>
+                </div>
+                <div class="card-body p-4">
+                    <form asp-action="SubmitPost" method="post">
+                        @Html.AntiForgeryToken()
+                        <input asp-for="Id" type="hidden" />
+                        
+                        <div class="row">
+                            <div class="col-12 mb-4">
+                                <div class="alert alert-info border-0 bg-info bg-opacity-10">
+                                    <div class="d-flex align-items-start">
+                                        <i class="fas fa-info-circle text-info me-2 mt-1"></i>
+                                        <div>
+                                            <strong>Important:</strong> Once submitted, only the specified approver will be able to review and approve this request. 
+                                            Make sure to enter the correct email address of the person authorized to approve trading limit requests.
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-8 mb-4">
+                                <label asp-for="ApprovalEmail" class="form-label">
+                                    <i class="fas fa-envelope me-1"></i>
+                                    Approver Email Address <span class="text-danger">*</span>
+                                </label>
+                                <input asp-for="ApprovalEmail" class="form-control form-control-lg" 
+                                       placeholder="Enter the email address of the approver" 
+                                       autocomplete="email" />
+                                <span asp-validation-for="ApprovalEmail" class="text-danger"></span>
+                                <div class="form-text">
+                                    <i class="fas fa-lightbulb me-1"></i>
+                                    This should be your manager's or supervisor's email address who has authority to approve trading limit changes.
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="d-flex gap-3 pt-3 border-top">
+                            <button type="submit" class="btn btn-success btn-lg px-4">
+                                <i class="fas fa-paper-plane me-2"></i>
+                                Submit for Approval
+                            </button>
+                            <a href="@Url.Action("Details", new { id = Model.Id })" class="btn btn-outline-secondary btn-lg px-4">
+                                <i class="fas fa-times me-2"></i>
+                                Cancel
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Guidelines Card -->
+            <div class="card border-0 shadow-sm mt-4">
+                <div class="card-header bg-light border-bottom py-3">
+                    <h6 class="card-title mb-0 text-secondary">
+                        <i class="fas fa-clipboard-list me-2"></i>
+                        Submission Guidelines
+                    </h6>
+                </div>
+                <div class="card-body p-4">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6 class="text-primary mb-2">
+                                <i class="fas fa-check-circle me-1"></i>
+                                Before Submitting
+                            </h6>
+                            <ul class="list-unstyled text-sm">
+                                <li class="mb-2">
+                                    <i class="fas fa-chevron-right text-muted me-2"></i>
+                                    Verify all information is accurate and complete
+                                </li>
+                                <li class="mb-2">
+                                    <i class="fas fa-chevron-right text-muted me-2"></i>
+                                    Attach any supporting documents if required
+                                </li>
+                                <li class="mb-2">
+                                    <i class="fas fa-chevron-right text-muted me-2"></i>
+                                    Confirm the approver's email address is correct
+                                </li>
+                            </ul>
+                        </div>
+                        <div class="col-md-6">
+                            <h6 class="text-info mb-2">
+                                <i class="fas fa-clock me-1"></i>
+                                After Submission
+                            </h6>
+                            <ul class="list-unstyled text-sm">
+                                <li class="mb-2">
+                                    <i class="fas fa-chevron-right text-muted me-2"></i>
+                                    The request cannot be edited once submitted
+                                </li>
+                                <li class="mb-2">
+                                    <i class="fas fa-chevron-right text-muted me-2"></i>
+                                    The approver will receive notification to review
+                                </li>
+                                <li class="mb-2">
+                                    <i class="fas fa-chevron-right text-muted me-2"></i>
+                                    You'll be notified of the approval decision
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    
+    <script>
+        $(document).ready(function() {
+            // Form validation enhancement
+            $('form').on('submit', function(e) {
+                var email = $('#ApprovalEmail').val().trim();
+                
+                if (!email) {
+                    e.preventDefault();
+                    toastr.error('Please enter the approver\'s email address.');
+                    $('#ApprovalEmail').focus();
+                    return false;
+                }
+                
+                // Email format validation
+                var emailRegex = /^[^\s@@]+@@[^\s@@]+\.[^\s@@]+$/;
+                if (!emailRegex.test(email)) {
+                    e.preventDefault();
+                    toastr.error('Please enter a valid email address.');
+                    $('#ApprovalEmail').focus();
+                    return false;
+                }
+                
+                // Confirmation dialog
+                return confirm('Are you sure you want to submit this request to ' + email + ' for approval?');
+            });
+            
+            // Auto-focus on email field
+            $('#ApprovalEmail').focus();
+        });
+    </script>
+
+    <style>
+        .page-title {
+            font-size: 1.75rem;
+            font-weight: 700;
+            color: #333;
+        }
+
+        .form-control-lg {
+            padding: 0.75rem 1rem;
+            font-size: 1.1rem;
+        }
+
+        .text-sm {
+            font-size: 0.875rem;
+        }
+
+        .alert {
+            border-radius: 0.5rem;
+        }
+
+        .card {
+            border-radius: 0.75rem;
+            transition: box-shadow 0.15s ease-in-out;
+        }
+
+        .card:hover {
+            box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.1) !important;
+        }
+
+        .btn-lg {
+            padding: 0.75rem 1.5rem;
+            font-size: 1rem;
+            font-weight: 500;
+        }
+    </style>
+}

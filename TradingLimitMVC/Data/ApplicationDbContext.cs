@@ -17,6 +17,8 @@ namespace TradingLimitMVC.Data
         public DbSet<TradingLimitRequestAttachment> TradingLimitRequestAttachments { get; set; }
         public DbSet<RefreshToken> RefreshTokens { get; set; }
         public DbSet<ApprovalNotification> ApprovalNotifications { get; set; }
+        public DbSet<ApprovalWorkflow> ApprovalWorkflows { get; set; }
+        public DbSet<ApprovalStep> ApprovalSteps { get; set; }
 
 
 
@@ -87,12 +89,16 @@ namespace TradingLimitMVC.Data
                 entity.Property(e => e.ModifiedBy).HasMaxLength(100);
                 entity.Property(e => e.Status).HasMaxLength(50);
                 entity.Property(e => e.SubmittedBy).HasMaxLength(100);
+                entity.Property(e => e.ApprovalEmail).HasMaxLength(200);
+                entity.Property(e => e.ApprovedBy).HasMaxLength(100);
+                entity.Property(e => e.ApprovalComments).HasMaxLength(500);
                 entity.Property(e => e.CreatedDate).HasDefaultValueSql("GETDATE()");
 
                 entity.HasIndex(e => e.RequestId).IsUnique().HasFilter("[RequestId] IS NOT NULL");
                 entity.HasIndex(e => e.TRCode);
                 entity.HasIndex(e => e.ClientCode);
                 entity.HasIndex(e => e.Status);
+                entity.HasIndex(e => e.ApprovalEmail);
             });
 
             // Configure TradingLimitRequestAttachment
@@ -153,6 +159,59 @@ namespace TradingLimitMVC.Data
                 entity.HasIndex(e => e.RecipientEmail);
                 entity.HasIndex(e => e.Type);
                 entity.HasIndex(e => new { e.RequestId, e.RequestType });
+            });
+
+            // Configure ApprovalWorkflow
+            modelBuilder.Entity<ApprovalWorkflow>(entity =>
+            {
+                entity.ToTable("Temp_TL_ApprovalWorkflows");
+                entity.HasKey(e => e.Id);
+
+                entity.Property(e => e.WorkflowType).IsRequired().HasMaxLength(20);
+                entity.Property(e => e.Status).IsRequired().HasMaxLength(50);
+                entity.Property(e => e.CreatedDate).IsRequired().HasDefaultValueSql("GETUTCDATE()");
+
+                // Relationship with TradingLimitRequest
+                entity.HasOne(e => e.TradingLimitRequest)
+                      .WithOne(tr => tr.ApprovalWorkflow)
+                      .HasForeignKey<ApprovalWorkflow>(e => e.TradingLimitRequestId)
+                      .OnDelete(DeleteBehavior.Cascade);
+
+                // Create indexes for performance
+                entity.HasIndex(e => e.TradingLimitRequestId);
+                entity.HasIndex(e => e.Status);
+                entity.HasIndex(e => e.WorkflowType);
+            });
+
+            // Configure ApprovalStep
+            modelBuilder.Entity<ApprovalStep>(entity =>
+            {
+                entity.ToTable("Temp_TL_ApprovalSteps");
+                entity.HasKey(e => e.Id);
+
+                entity.Property(e => e.ApproverEmail).IsRequired().HasMaxLength(200);
+                entity.Property(e => e.ApproverName).HasMaxLength(100);
+                entity.Property(e => e.ApproverRole).HasMaxLength(100);
+                entity.Property(e => e.Status).IsRequired().HasMaxLength(50);
+                entity.Property(e => e.Comments).HasMaxLength(1000);
+                entity.Property(e => e.RequiredDepartment).HasMaxLength(100);
+                entity.Property(e => e.ApprovalConditions).HasMaxLength(500);
+                entity.Property(e => e.MinimumAmountThreshold).HasColumnType("decimal(18,2)");
+                entity.Property(e => e.MaximumAmountThreshold).HasColumnType("decimal(18,2)");
+                entity.Property(e => e.AssignedDate).IsRequired().HasDefaultValueSql("GETUTCDATE()");
+
+                // Relationship with ApprovalWorkflow
+                entity.HasOne(e => e.ApprovalWorkflow)
+                      .WithMany(aw => aw.ApprovalSteps)
+                      .HasForeignKey(e => e.ApprovalWorkflowId)
+                      .OnDelete(DeleteBehavior.Cascade);
+
+                // Create indexes for performance
+                entity.HasIndex(e => e.ApprovalWorkflowId);
+                entity.HasIndex(e => e.ApproverEmail);
+                entity.HasIndex(e => e.Status);
+                entity.HasIndex(e => e.StepNumber);
+                entity.HasIndex(e => new { e.ApprovalWorkflowId, e.StepNumber }).IsUnique();
             });
         }
     }

@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using TradingLimitMVC.Data;
 using TradingLimitMVC.Models;
+using TradingLimitMVC.Models.ViewModels;
 using TradingLimitMVC.Services;
 using System.Security.Claims;
 
@@ -223,19 +224,62 @@ namespace TradingLimitMVC.Controllers
             return RedirectToAction(nameof(Index));
         }
 
-        // POST: TradingLimitRequest/Submit/5
-        [HttpPost("Submit/{id}")]
-        [ValidateAntiForgeryToken]
+        // GET: TradingLimitRequest/Submit/5
+        [HttpGet("Submit/{id}")]
         public async Task<IActionResult> Submit(int id)
         {
             try
             {
+                var request = await _tradingLimitRequestService.GetByIdAsync(id);
+                if (request == null)
+                {
+                    TempData["ErrorMessage"] = "Trading Limit Request not found.";
+                    return RedirectToAction(nameof(Index));
+                }
+
+                // Check if request can be submitted (should be in Draft status)
+                if (request.Status != "Draft")
+                {
+                    TempData["ErrorMessage"] = "This request cannot be submitted in its current status.";
+                    return RedirectToAction("Details", new { id });
+                }
+
+                var viewModel = new SubmitRequestViewModel
+                {
+                    Id = id,
+                    Request = request
+                };
+
+                return View(viewModel);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error loading submit page for trading limit request with ID {Id}", id);
+                TempData["ErrorMessage"] = "An error occurred while loading the submit page.";
+                return RedirectToAction(nameof(Index));
+            }
+        }
+
+        // POST: TradingLimitRequest/Submit
+        [HttpPost("Submit")]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> SubmitPost(SubmitRequestViewModel model)
+        {
+            try
+            {
+                if (!ModelState.IsValid)
+                {
+                    // If model is invalid, reload the request and return to view
+                    model.Request = await _tradingLimitRequestService.GetByIdAsync(model.Id);
+                    return View("Submit", model);
+                }
+
                 var userName = GetCurrentUserName();
-                var result = await _tradingLimitRequestService.SubmitAsync(id, userName);
+                var result = await _tradingLimitRequestService.SubmitAsync(model.Id, userName, model.ApprovalEmail);
                 
                 if (result)
                 {
-                    TempData["SuccessMessage"] = "Trading Limit Request submitted successfully.";
+                    TempData["SuccessMessage"] = "Trading Limit Request submitted successfully for approval.";
                 }
                 else
                 {
@@ -244,11 +288,113 @@ namespace TradingLimitMVC.Controllers
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error submitting trading limit request with ID {Id}", id);
+                _logger.LogError(ex, "Error submitting trading limit request with ID {Id}", model.Id);
                 TempData["ErrorMessage"] = "An error occurred while submitting the trading limit request.";
             }
 
-            return RedirectToAction(nameof(Details), new { id });
+            return RedirectToAction(nameof(Details), new { id = model.Id });
+        }
+
+        // GET: TradingLimitRequest/SubmitMultiApproval/5
+        [HttpGet("SubmitMultiApproval/{id}")]
+        public async Task<IActionResult> SubmitMultiApproval(int id)
+        {
+            try
+            {
+                var request = await _tradingLimitRequestService.GetByIdAsync(id);
+                if (request == null)
+                {
+                    TempData["ErrorMessage"] = "Trading Limit Request not found.";
+                    return RedirectToAction(nameof(Index));
+                }
+
+                // Check if request can be submitted (should be in Draft status)
+                if (request.Status != "Draft")
+                {
+                    TempData["ErrorMessage"] = "This request cannot be submitted in its current status.";
+                    return RedirectToAction("Details", new { id });
+                }
+
+                var viewModel = new MultiApprovalSubmitViewModel
+                {
+                    Id = id,
+                    Request = request,
+                    WorkflowType = "Sequential",
+                    ApprovalSteps = new List<Models.ViewModels.ApprovalStepViewModel>
+                    {
+                        new Models.ViewModels.ApprovalStepViewModel { IsRequired = true }
+                    }
+                };
+
+                return View(viewModel);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error loading multi-approval submit page for trading limit request with ID {Id}", id);
+                TempData["ErrorMessage"] = "An error occurred while loading the submit page.";
+                return RedirectToAction(nameof(Index));
+            }
+        }
+
+        // POST: TradingLimitRequest/SubmitMultiApproval
+        [HttpPost("SubmitMultiApproval")]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> SubmitMultiApprovalPost(MultiApprovalSubmitViewModel model)
+        {
+            try
+            {
+                if (!ModelState.IsValid)
+                {
+                    // Reload request and return to view
+                    model.Request = await _tradingLimitRequestService.GetByIdAsync(model.Id);
+                    return View("SubmitMultiApproval", model);
+                }
+
+                // Validate that we have at least one approver
+                if (!model.ApprovalSteps.Any() || model.ApprovalSteps.All(s => string.IsNullOrWhiteSpace(s.Email)))
+                {
+                    ModelState.AddModelError("ApprovalSteps", "At least one approver is required.");
+                    model.Request = await _tradingLimitRequestService.GetByIdAsync(model.Id);
+                    return View("SubmitMultiApproval", model);
+                }
+
+                var userName = GetCurrentUserName();
+                
+                // Convert view model to service request objects
+                var approvers = model.ApprovalSteps
+                    .Where(s => !string.IsNullOrWhiteSpace(s.Email))
+                    .Select(s => new ApprovalStepRequest
+                    {
+                        Email = s.Email,
+                        Name = s.Name,
+                        Role = s.Role,
+                        IsRequired = s.IsRequired,
+                        DueDate = s.DueDate,
+                        MinimumAmountThreshold = s.MinimumAmountThreshold,
+                        MaximumAmountThreshold = s.MaximumAmountThreshold,
+                        RequiredDepartment = s.RequiredDepartment,
+                        ApprovalConditions = s.ApprovalConditions
+                    }).ToList();
+
+                var result = await _tradingLimitRequestService.SubmitWithMultiApprovalAsync(
+                    model.Id, userName, approvers, model.WorkflowType);
+                
+                if (result)
+                {
+                    TempData["SuccessMessage"] = "Trading Limit Request submitted successfully with multi-approval workflow.";
+                }
+                else
+                {
+                    TempData["ErrorMessage"] = "Trading Limit Request not found or cannot be submitted.";
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error submitting trading limit request with multi-approval workflow for ID {Id}", model.Id);
+                TempData["ErrorMessage"] = "An error occurred while submitting the trading limit request.";
+            }
+
+            return RedirectToAction(nameof(Details), new { id = model.Id });
         }
 
         // GET: TradingLimitRequest/MyRequests

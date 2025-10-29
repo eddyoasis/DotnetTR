@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using TradingLimitMVC.Data;
 
@@ -11,9 +12,11 @@ using TradingLimitMVC.Data;
 namespace TradingLimitMVC.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20251029083928_AddApprovalEmailFields")]
+    partial class AddApprovalEmailFields
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -77,145 +80,6 @@ namespace TradingLimitMVC.Migrations
                     b.HasIndex("RequestId", "RequestType");
 
                     b.ToTable("ApprovalNotifications", (string)null);
-                });
-
-            modelBuilder.Entity("TradingLimitMVC.Models.ApprovalStep", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<DateTime?>("ActionDate")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("ApprovalConditions")
-                        .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)");
-
-                    b.Property<int>("ApprovalWorkflowId")
-                        .HasColumnType("int");
-
-                    b.Property<string>("ApproverEmail")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)");
-
-                    b.Property<string>("ApproverName")
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
-
-                    b.Property<string>("ApproverRole")
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
-
-                    b.Property<DateTime>("AssignedDate")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("datetime2")
-                        .HasDefaultValueSql("GETUTCDATE()");
-
-                    b.Property<string>("Comments")
-                        .HasMaxLength(1000)
-                        .HasColumnType("nvarchar(1000)");
-
-                    b.Property<DateTime?>("DueDate")
-                        .HasColumnType("datetime2");
-
-                    b.Property<int>("EscalationLevel")
-                        .HasColumnType("int");
-
-                    b.Property<bool>("IsRequired")
-                        .HasColumnType("bit");
-
-                    b.Property<DateTime?>("LastReminderSent")
-                        .HasColumnType("datetime2");
-
-                    b.Property<decimal?>("MaximumAmountThreshold")
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<decimal?>("MinimumAmountThreshold")
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<string>("RequiredDepartment")
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
-
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
-
-                    b.Property<int>("StepNumber")
-                        .HasColumnType("int");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ApprovalWorkflowId");
-
-                    b.HasIndex("ApproverEmail");
-
-                    b.HasIndex("Status");
-
-                    b.HasIndex("StepNumber");
-
-                    b.HasIndex("ApprovalWorkflowId", "StepNumber")
-                        .IsUnique();
-
-                    b.ToTable("ApprovalSteps", (string)null);
-                });
-
-            modelBuilder.Entity("TradingLimitMVC.Models.ApprovalWorkflow", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<DateTime?>("CompletedDate")
-                        .HasColumnType("datetime2");
-
-                    b.Property<DateTime>("CreatedDate")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("datetime2")
-                        .HasDefaultValueSql("GETUTCDATE()");
-
-                    b.Property<int>("CurrentStep")
-                        .HasColumnType("int");
-
-                    b.Property<int>("ReceivedApprovals")
-                        .HasColumnType("int");
-
-                    b.Property<int>("RequiredApprovals")
-                        .HasColumnType("int");
-
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
-
-                    b.Property<int>("TradingLimitRequestId")
-                        .HasColumnType("int");
-
-                    b.Property<DateTime?>("UpdatedDate")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("WorkflowType")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("Status");
-
-                    b.HasIndex("TradingLimitRequestId")
-                        .IsUnique();
-
-                    b.HasIndex("WorkflowType");
-
-                    b.ToTable("ApprovalWorkflows", (string)null);
                 });
 
             modelBuilder.Entity("TradingLimitMVC.Models.Attachment", b =>
@@ -649,28 +513,6 @@ namespace TradingLimitMVC.Migrations
                     b.ToTable("Temp_TL_TradingLimitRequestAttachments", (string)null);
                 });
 
-            modelBuilder.Entity("TradingLimitMVC.Models.ApprovalStep", b =>
-                {
-                    b.HasOne("TradingLimitMVC.Models.ApprovalWorkflow", "ApprovalWorkflow")
-                        .WithMany("ApprovalSteps")
-                        .HasForeignKey("ApprovalWorkflowId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("ApprovalWorkflow");
-                });
-
-            modelBuilder.Entity("TradingLimitMVC.Models.ApprovalWorkflow", b =>
-                {
-                    b.HasOne("TradingLimitMVC.Models.TradingLimitRequest", "TradingLimitRequest")
-                        .WithOne("ApprovalWorkflow")
-                        .HasForeignKey("TradingLimitMVC.Models.ApprovalWorkflow", "TradingLimitRequestId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("TradingLimitRequest");
-                });
-
             modelBuilder.Entity("TradingLimitMVC.Models.TradingLimitRequestAttachment", b =>
                 {
                     b.HasOne("TradingLimitMVC.Models.TradingLimitRequest", "TradingLimitRequest")
@@ -682,15 +524,8 @@ namespace TradingLimitMVC.Migrations
                     b.Navigation("TradingLimitRequest");
                 });
 
-            modelBuilder.Entity("TradingLimitMVC.Models.ApprovalWorkflow", b =>
-                {
-                    b.Navigation("ApprovalSteps");
-                });
-
             modelBuilder.Entity("TradingLimitMVC.Models.TradingLimitRequest", b =>
                 {
-                    b.Navigation("ApprovalWorkflow");
-
                     b.Navigation("Attachments");
                 });
 #pragma warning restore 612, 618

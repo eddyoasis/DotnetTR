@@ -1,0 +1,398 @@
+@model TradingLimitMVC.Models.ViewModels.MultiApprovalSubmitViewModel
+
+@{
+    ViewData["Title"] = "Multi-Approval Workflow Setup";
+}
+
+<div class="container-fluid">
+    <div class="row justify-content-center">
+        <div class="col-lg-10">
+            <!-- Breadcrumb -->
+            <nav aria-label="breadcrumb" class="mb-3">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item">
+                        <a href="@Url.Action("Index")" class="text-decoration-none">
+                            <i class="fas fa-list me-1"></i>Requests
+                        </a>
+                    </li>
+                    <li class="breadcrumb-item">
+                        <a href="@Url.Action("Details", new { id = Model.Id })" class="text-decoration-none">
+                            @Model.Request?.RequestId
+                        </a>
+                    </li>
+                    <li class="breadcrumb-item active" aria-current="page">Multi-Approval Setup</li>
+                </ol>
+            </nav>
+
+            <!-- Header -->
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h1 class="page-title mb-2">
+                        <i class="fas fa-users text-primary me-2"></i>
+                        Multi-Approval Workflow Setup
+                    </h1>
+                    <p class="text-muted mb-0">Configure multiple approvers for your trading limit request</p>
+                </div>
+                <a href="@Url.Action("Details", new { id = Model.Id })" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left me-1"></i>
+                    Back to Details
+                </a>
+            </div>
+
+            <!-- Request Summary Card -->
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-light border-bottom py-3">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-file-contract me-2 text-info"></i>
+                        Request Summary
+                    </h5>
+                </div>
+                <div class="card-body p-4">
+                    <div class="row">
+                        <div class="col-md-3 mb-3">
+                            <label class="form-label text-muted">Request ID</label>
+                            <div class="fw-bold">@Model.Request?.RequestId</div>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label class="form-label text-muted">Client Code</label>
+                            <div class="fw-bold">@Model.Request?.ClientCode</div>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label class="form-label text-muted">Request Type</label>
+                            <div class="fw-bold">@Model.Request?.RequestType</div>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label class="form-label text-muted">Proposed GL Limit</label>
+                            <div class="fw-bold text-success">@Model.Request?.GLProposedLimit.ToString("C")</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <form asp-action="SubmitMultiApprovalPost" method="post" id="multiApprovalForm">
+                @Html.AntiForgeryToken()
+                <input asp-for="Id" type="hidden" />
+                
+                <!-- Workflow Configuration Card -->
+                <div class="card border-0 shadow-sm mb-4">
+                    <div class="card-header bg-primary text-white py-3">
+                        <h5 class="card-title mb-0 text-white">
+                            <i class="fas fa-cogs me-2"></i>
+                            Workflow Configuration
+                        </h5>
+                    </div>
+                    <div class="card-body p-4">
+                        <div class="row">
+                            <div class="col-md-6 mb-4">
+                                <label asp-for="WorkflowType" class="form-label">
+                                    <i class="fas fa-route me-1"></i>
+                                    Workflow Type <span class="text-danger">*</span>
+                                </label>
+                                <select asp-for="WorkflowType" class="form-select">
+                                    <option value="Sequential">Sequential - Approvers must approve in order</option>
+                                    <option value="Parallel">Parallel - All approvers can approve simultaneously</option>
+                                </select>
+                                <span asp-validation-for="WorkflowType" class="text-danger"></span>
+                                <div class="form-text">
+                                    <strong>Sequential:</strong> Each approver must wait for the previous one to complete.<br>
+                                    <strong>Parallel:</strong> All approvers receive notification at the same time.
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Approvers Configuration Card -->
+                <div class="card border-0 shadow-sm mb-4">
+                    <div class="card-header bg-success text-white py-3 d-flex justify-content-between align-items-center">
+                        <h5 class="card-title mb-0 text-white">
+                            <i class="fas fa-user-check me-2"></i>
+                            Approval Steps
+                        </h5>
+                        <button type="button" class="btn btn-light btn-sm" id="addApproverBtn">
+                            <i class="fas fa-plus me-1"></i>
+                            Add Approver
+                        </button>
+                    </div>
+                    <div class="card-body p-4">
+                        <div id="approversContainer">
+                            @for (int i = 0; i < Model.ApprovalSteps.Count; i++)
+                            {
+                                <div class="approver-step border rounded p-3 mb-3" data-step="@i">
+                                    <div class="d-flex justify-content-between align-items-center mb-3">
+                                        <h6 class="mb-0">
+                                            <span class="badge bg-primary me-2">Step @(i + 1)</span>
+                                            Approver Details
+                                        </h6>
+                                        @if (i > 0)
+                                        {
+                                            <button type="button" class="btn btn-outline-danger btn-sm remove-approver">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
+                                        }
+                                    </div>
+                                    
+                                    <div class="row">
+                                        <div class="col-md-6 mb-3">
+                                            <label class="form-label">
+                                                Email Address <span class="text-danger">*</span>
+                                            </label>
+                                            <input asp-for="ApprovalSteps[i].Email" class="form-control" 
+                                                   placeholder="Enter approver's email" />
+                                            <span asp-validation-for="ApprovalSteps[i].Email" class="text-danger"></span>
+                                        </div>
+                                        <div class="col-md-6 mb-3">
+                                            <label class="form-label">Name</label>
+                                            <input asp-for="ApprovalSteps[i].Name" class="form-control" 
+                                                   placeholder="Enter approver's name (optional)" />
+                                        </div>
+                                        <div class="col-md-4 mb-3">
+                                            <label class="form-label">Role/Department</label>
+                                            <input asp-for="ApprovalSteps[i].Role" class="form-control" 
+                                                   placeholder="e.g., Manager, Director" />
+                                        </div>
+                                        <div class="col-md-4 mb-3">
+                                            <label class="form-label">Due Date</label>
+                                            <input asp-for="ApprovalSteps[i].DueDate" class="form-control" 
+                                                   type="date" />
+                                        </div>
+                                        <div class="col-md-4 mb-3">
+                                            <div class="form-check mt-4">
+                                                <input asp-for="ApprovalSteps[i].IsRequired" 
+                                                       class="form-check-input" type="checkbox" />
+                                                <label asp-for="ApprovalSteps[i].IsRequired" class="form-check-label">
+                                                    Required Approver
+                                                </label>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Advanced Options (Collapsible) -->
+                                    <div class="advanced-options">
+                                        <button type="button" class="btn btn-outline-secondary btn-sm" 
+                                                data-bs-toggle="collapse" data-bs-target="#advanced-@i">
+                                            <i class="fas fa-chevron-down me-1"></i>
+                                            Advanced Options
+                                        </button>
+                                        
+                                        <div class="collapse mt-3" id="advanced-@i">
+                                            <div class="border-top pt-3">
+                                                <div class="row">
+                                                    <div class="col-md-6 mb-3">
+                                                        <label class="form-label">Min Amount Threshold</label>
+                                                        <div class="input-group">
+                                                            <span class="input-group-text">$</span>
+                                                            <input asp-for="ApprovalSteps[i].MinimumAmountThreshold" 
+                                                                   class="form-control" type="number" step="0.01" />
+                                                        </div>
+                                                    </div>
+                                                    <div class="col-md-6 mb-3">
+                                                        <label class="form-label">Max Amount Threshold</label>
+                                                        <div class="input-group">
+                                                            <span class="input-group-text">$</span>
+                                                            <input asp-for="ApprovalSteps[i].MaximumAmountThreshold" 
+                                                                   class="form-control" type="number" step="0.01" />
+                                                        </div>
+                                                    </div>
+                                                    <div class="col-12 mb-3">
+                                                        <label class="form-label">Approval Conditions</label>
+                                                        <textarea asp-for="ApprovalSteps[i].ApprovalConditions" 
+                                                                  class="form-control" rows="2"
+                                                                  placeholder="Specific conditions for this approval step..."></textarea>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            }
+                        </div>
+
+                        <div class="alert alert-info border-0 bg-info bg-opacity-10">
+                            <div class="d-flex align-items-start">
+                                <i class="fas fa-info-circle text-info me-2 mt-1"></i>
+                                <div>
+                                    <strong>Workflow Guidelines:</strong>
+                                    <ul class="mb-0 mt-2">
+                                        <li><strong>Sequential:</strong> Approvers will receive notifications in the order specified</li>
+                                        <li><strong>Parallel:</strong> All approvers receive notifications simultaneously</li>
+                                        <li><strong>Required Approvers:</strong> Must approve for the request to proceed</li>
+                                        <li><strong>Optional Approvers:</strong> Can provide input but approval is not mandatory</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Submit Actions -->
+                <div class="d-flex gap-3 mb-4">
+                    <button type="submit" class="btn btn-success btn-lg px-4">
+                        <i class="fas fa-paper-plane me-2"></i>
+                        Submit for Multi-Approval
+                    </button>
+                    <a href="@Url.Action("Submit", new { id = Model.Id })" class="btn btn-outline-primary btn-lg px-4">
+                        <i class="fas fa-user me-2"></i>
+                        Use Single Approver Instead
+                    </a>
+                    <a href="@Url.Action("Details", new { id = Model.Id })" class="btn btn-outline-secondary btn-lg px-4">
+                        <i class="fas fa-times me-2"></i>
+                        Cancel
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    
+    <script>
+        $(document).ready(function() {
+            let approverCount = @Model.ApprovalSteps.Count;
+            
+            // Add new approver
+            $('#addApproverBtn').click(function() {
+                const stepHtml = createApproverStep(approverCount);
+                $('#approversContainer').append(stepHtml);
+                approverCount++;
+                updateStepNumbers();
+            });
+            
+            // Remove approver
+            $(document).on('click', '.remove-approver', function() {
+                $(this).closest('.approver-step').remove();
+                updateStepNumbers();
+            });
+            
+            // Form validation
+            $('#multiApprovalForm').on('submit', function(e) {
+                const emails = $('.approver-step input[name*="Email"]').map(function() {
+                    return $(this).val().trim();
+                }).get();
+                
+                const validEmails = emails.filter(email => email.length > 0);
+                
+                if (validEmails.length === 0) {
+                    e.preventDefault();
+                    toastr.error('Please add at least one approver with a valid email address.');
+                    return false;
+                }
+                
+                // Check for duplicate emails
+                const duplicates = validEmails.filter((email, index) => validEmails.indexOf(email) !== index);
+                if (duplicates.length > 0) {
+                    e.preventDefault();
+                    toastr.error('Duplicate email addresses are not allowed: ' + duplicates.join(', '));
+                    return false;
+                }
+                
+                return confirm('Are you sure you want to submit this request with the configured approval workflow?');
+            });
+            
+            function createApproverStep(index) {
+                return `
+                    <div class="approver-step border rounded p-3 mb-3" data-step="${index}">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h6 class="mb-0">
+                                <span class="badge bg-primary me-2">Step ${index + 1}</span>
+                                Approver Details
+                            </h6>
+                            <button type="button" class="btn btn-outline-danger btn-sm remove-approver">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">
+                                    Email Address <span class="text-danger">*</span>
+                                </label>
+                                <input name="ApprovalSteps[${index}].Email" class="form-control" 
+                                       placeholder="Enter approver's email" />
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Name</label>
+                                <input name="ApprovalSteps[${index}].Name" class="form-control" 
+                                       placeholder="Enter approver's name (optional)" />
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label class="form-label">Role/Department</label>
+                                <input name="ApprovalSteps[${index}].Role" class="form-control" 
+                                       placeholder="e.g., Manager, Director" />
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label class="form-label">Due Date</label>
+                                <input name="ApprovalSteps[${index}].DueDate" class="form-control" 
+                                       type="date" />
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <div class="form-check mt-4">
+                                    <input name="ApprovalSteps[${index}].IsRequired" 
+                                           class="form-check-input" type="checkbox" checked />
+                                    <label class="form-check-label">
+                                        Required Approver
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+            
+            function updateStepNumbers() {
+                $('.approver-step').each(function(index) {
+                    $(this).find('.badge').text('Step ' + (index + 1));
+                    $(this).attr('data-step', index);
+                    
+                    // Update input names
+                    $(this).find('input, textarea').each(function() {
+                        const name = $(this).attr('name');
+                        if (name) {
+                            const newName = name.replace(/\[\d+\]/, '[' + index + ']');
+                            $(this).attr('name', newName);
+                        }
+                    });
+                });
+            }
+        });
+    </script>
+
+    <style>
+        .page-title {
+            font-size: 1.75rem;
+            font-weight: 700;
+            color: #333;
+        }
+
+        .approver-step {
+            background: #fafbfc;
+            transition: all 0.2s;
+        }
+
+        .approver-step:hover {
+            background: #f5f7fa;
+            border-color: #007bff !important;
+        }
+
+        .card {
+            border-radius: 0.75rem;
+            transition: box-shadow 0.15s ease-in-out;
+        }
+
+        .btn-lg {
+            padding: 0.75rem 1.5rem;
+            font-size: 1rem;
+            font-weight: 500;
+        }
+
+        .badge {
+            font-size: 0.75rem;
+        }
+
+        .advanced-options .btn {
+            font-size: 0.875rem;
+        }
+    </style>
+}

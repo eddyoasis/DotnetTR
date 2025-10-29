@@ -67,6 +67,7 @@ builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddScoped<IConfigurationHelperService, ConfigurationHelperService>();
 builder.Services.AddScoped<ITradingLimitRequestService, TradingLimitRequestService>();
 builder.Services.AddScoped<IGeneralService, GeneralService>();
+builder.Services.AddScoped<IApprovalWorkflowService, ApprovalWorkflowService>();
 
 
 // Add logging

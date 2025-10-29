@@ -91,6 +91,26 @@ namespace TradingLimitMVC.Models
         [MaxLength(100)]
         public string? SubmittedBy { get; set; }
 
+        // Legacy approval fields (for backward compatibility)
+        [Display(Name = "Approver Email")]
+        [MaxLength(200)]
+        [EmailAddress(ErrorMessage = "Please enter a valid email address")]
+        public string? ApprovalEmail { get; set; }
+
+        [Display(Name = "Approved Date")]
+        public DateTime? ApprovedDate { get; set; }
+
+        [Display(Name = "Approved By")]
+        [MaxLength(100)]
+        public string? ApprovedBy { get; set; }
+
+        [Display(Name = "Approval Comments")]
+        [MaxLength(500)]
+        public string? ApprovalComments { get; set; }
+
+        // Multi-step approval workflow
+        public virtual ApprovalWorkflow? ApprovalWorkflow { get; set; }
+
         // Navigation property for attachments
         public virtual ICollection<TradingLimitRequestAttachment> Attachments { get; set; } = new List<TradingLimitRequestAttachment>();
 
@@ -98,6 +118,22 @@ namespace TradingLimitMVC.Models
         [NotMapped]
         [Display(Name = "Has Supporting Documents")]
         public bool HasSupportingDocuments => Attachments?.Any() == true;
+
+        [NotMapped]
+        [Display(Name = "Uses Multi-Step Approval")]
+        public bool HasMultiStepApproval => ApprovalWorkflow != null;
+
+        [NotMapped]
+        [Display(Name = "Current Approval Step")]
+        public string? CurrentApprovalStep => ApprovalWorkflow?.CurrentActiveStep?.ApproverName ?? ApprovalWorkflow?.CurrentActiveStep?.ApproverEmail;
+
+        [NotMapped]
+        [Display(Name = "Approval Progress")]
+        public double ApprovalProgress => ApprovalWorkflow?.CompletionPercentage ?? 0;
+
+        [NotMapped]
+        [Display(Name = "Pending Approvers")]
+        public IEnumerable<ApprovalStep> PendingApprovalSteps => ApprovalWorkflow?.ApprovalSteps?.Where(s => s.IsActive) ?? Enumerable.Empty<ApprovalStep>();
     }
 
     public class TradingLimitRequestAttachment
