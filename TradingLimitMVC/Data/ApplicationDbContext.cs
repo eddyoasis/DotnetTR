@@ -15,6 +15,7 @@ namespace TradingLimitMVC.Data
         public DbSet<Attachment> Attachments { get; set; }
         public DbSet<TradingLimitRequest> TradingLimitRequests { get; set; }
         public DbSet<TradingLimitRequestAttachment> TradingLimitRequestAttachments { get; set; }
+        public DbSet<RefreshToken> RefreshTokens { get; set; }
 
 
 
@@ -109,6 +110,29 @@ namespace TradingLimitMVC.Data
                     .WithMany(tr => tr.Attachments)
                     .HasForeignKey(e => e.TradingLimitRequestId)
                     .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            modelBuilder.Entity<RefreshToken>(entity =>
+            {
+                entity.ToTable("RefreshTokens");
+                entity.HasKey(e => e.Id);
+
+                entity.Property(e => e.Token).IsRequired().HasMaxLength(500);
+                entity.Property(e => e.Username).IsRequired().HasMaxLength(255);
+                entity.Property(e => e.ExpiresAt).IsRequired();
+                entity.Property(e => e.CreatedAt).IsRequired().HasDefaultValueSql("GETUTCDATE()");
+                entity.Property(e => e.RevokedBy).HasMaxLength(500);
+                entity.Property(e => e.RevokeReason).HasMaxLength(1000);
+                entity.Property(e => e.ReplacedByToken).HasMaxLength(500);
+                entity.Property(e => e.DeviceId).HasMaxLength(50);
+                entity.Property(e => e.IpAddress).HasMaxLength(255);
+                entity.Property(e => e.UserAgent).HasMaxLength(500);
+
+                // Create indexes for performance
+                entity.HasIndex(e => e.Token).IsUnique();
+                entity.HasIndex(e => e.Username);
+                entity.HasIndex(e => e.ExpiresAt);
+                entity.HasIndex(e => new { e.Username, e.DeviceId });
             });
         }
     }

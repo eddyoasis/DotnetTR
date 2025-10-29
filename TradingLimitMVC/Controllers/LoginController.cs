@@ -45,7 +45,7 @@ namespace TradingLimitMVC.Controllers
                     Expires = DateTime.UtcNow.AddHours(1) // Cookie expires in 1 hour
                 });
 
-                Response.Cookies.Append("refresh_token", jwtTokenModel.RefreshToken, new CookieOptions
+                Response.Cookies.Append("RefreshToken", jwtTokenModel.RefreshToken, new CookieOptions
                 {
                     HttpOnly = true,
                     //Secure = true,

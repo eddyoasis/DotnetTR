@@ -28,6 +28,7 @@ builder.Services.Configure<PowerWorkflowAppSetting>(builder.Configuration.GetSec
 
 /*------------- DI */
 builder.Services.AddScoped<ILoginService, LoginService>();
+builder.Services.AddScoped<IRefreshTokenService, RefreshTokenService>();
 
 /*------------- JWT */
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
