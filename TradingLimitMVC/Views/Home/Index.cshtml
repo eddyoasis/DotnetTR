@@ -254,12 +254,58 @@
     <h1 class="dashboard-title">
         <i class="fas fa-tachometer-alt me-2"></i>Dashboard
     </h1>
-    <p class="dashboard-subtitle">Welcome back! Here's what's happening with your purchase system today.</p>
+    <p class="dashboard-subtitle">Welcome back! Here's what's happening with your trading limit system today.</p>
 </div>
 
+<!-- Statistics Cards -->
+<div class="stats-grid">
+    <div class="stat-card">
+        <div class="stat-header">
+            <div class="stat-content">
+                <h3 class="stat-number">@Model.TotalTradingLimitRequests</h3>
+                <p>Total Requests</p>
+            </div>
+            <div class="stat-icon stat-icon-primary">
+                <i class="fas fa-file-alt"></i>
+            </div>
+        </div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-header">
+            <div class="stat-content">
+                <h3 class="stat-number">@Model.PendingApprovals</h3>
+                <p>Pending Approvals</p>
+            </div>
+            <div class="stat-icon stat-icon-warning">
+                <i class="fas fa-clock"></i>
+            </div>
+        </div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-header">
+            <div class="stat-content">
+                <h3 class="stat-number">@Model.ApprovedRequests</h3>
+                <p>Approved Requests</p>
+            </div>
+            <div class="stat-icon stat-icon-success">
+                <i class="fas fa-check-circle"></i>
+            </div>
+        </div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-header">
+            <div class="stat-content">
+                <h3 class="stat-number">@Model.RejectedRequests</h3>
+                <p>Rejected Requests</p>
+            </div>
+            <div class="stat-icon stat-icon-info">
+                <i class="fas fa-times-circle"></i>
+            </div>
+        </div>
+    </div>
+</div>
 
 <!-- Quick Actions -->
-
 <div class="card quick-actions-card">
     <div class="card-header">
         <i class="fas fa-bolt"></i>
@@ -267,40 +313,81 @@
     </div>
     <div class="card-body">
         <div class="action-grid">
-            <a asp-controller="PurchaseRequisition" asp-action="Create" class="action-btn action-btn-primary">
+            <a asp-controller="TradingLimitRequest" asp-action="Create" class="action-btn action-btn-primary">
                 <div class="action-icon">
                     <i class="fas fa-plus-circle"></i>
                 </div>
-                <div class="action-title">Create New PR</div>
-                <div class="action-subtitle">Purchase Requisition</div>
+                <div class="action-title">Create New Request</div>
+                <div class="action-subtitle">Trading Limit Request</div>
             </a>
-            <a asp-controller="PurchaseRequisition" asp-action="Index" class="action-btn action-btn-success">
+            <a asp-controller="TradingLimitRequest" asp-action="Index" class="action-btn action-btn-success">
                 <div class="action-icon">
-                    <i class="fas fa-receipt"></i>
+                    <i class="fas fa-list"></i>
                 </div>
-                <div class="action-title">PR List</div>
-                <div class="action-subtitle">Purchase Requisition List</div>
+                <div class="action-title">View All Requests</div>
+                <div class="action-subtitle">Trading Limit List</div>
             </a>
-
-            <a asp-controller="PurchaseOrder" asp-action="Index" class="action-btn action-btn-polist">
+            <a asp-controller="TradingLimitRequest" asp-action="MyRequests" class="action-btn action-btn-warning">
                 <div class="action-icon">
-                    <i class="fas fa-receipt"></i>
+                    <i class="fas fa-user-check"></i>
                 </div>
-                <div class="action-title">PO List</div>
-                <div class="action-subtitle">Purchase Order List</div>
+                <div class="action-title">My Requests</div>
+                <div class="action-subtitle">My Submissions</div>
             </a>
-
-            <a asp-controller="PurchaseRequisitionApproval" asp-action="Index" class="action-btn action-btn-warning">
+            <a asp-controller="Company" asp-action="Index" class="action-btn action-btn-polist">
                 <div class="action-icon">
-                    <i class="fas fa-check-double"></i>
+                    <i class="fas fa-building"></i>
                 </div>
-                <div class="action-title">PR Approvals</div>
-                <div class="action-subtitle">Review & Approve</div>
+                <div class="action-title">Manage Companies</div>
+                <div class="action-subtitle">Company Settings</div>
             </a>
         </div>
     </div>
+</div>
 
-
+<!-- Recent Requests -->
+<div class="card">
+    <div class="card-header">
+        <i class="fas fa-history me-2"></i>
+        Recent Trading Limit Requests
+    </div>
+    <div class="card-body">
+        @if (Model.RecentRequests.Any())
+        {
+            @foreach (var request in Model.RecentRequests)
+            {
+                <div class="activity-item">
+                    <div class="activity-icon stat-icon-primary">
+                        <i class="fas fa-file-alt"></i>
+                    </div>
+                    <div class="activity-content">
+                        <div class="activity-title">
+                            @request.TRCode - @request.ClientCode
+                        </div>
+                        <div class="activity-time">
+                            @request.RequestDate.ToString("MMM dd, yyyy") - Status: @request.Status
+                        </div>
+                    </div>
+                    <div>
+                        <a asp-controller="TradingLimitRequest" asp-action="Details" asp-route-id="@request.Id" 
+                           class="btn btn-sm btn-outline-primary">
+                            <i class="fas fa-eye"></i> View
+                        </a>
+                    </div>
+                </div>
+            }
+        }
+        else
+        {
+            <div class="text-center py-4">
+                <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
+                <p class="text-muted">No recent trading limit requests found.</p>
+                <a asp-controller="TradingLimitRequest" asp-action="Create" class="btn btn-primary">
+                    <i class="fas fa-plus"></i> Create First Request
+                </a>
+            </div>
+        }
+    </div>
 </div>
 @section Scripts {
     <script>
