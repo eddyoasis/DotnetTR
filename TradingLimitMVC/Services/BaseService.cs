@@ -14,12 +14,18 @@ namespace TradingLimitMVC.Services
         public static string? Email { get; set; }
         public static string? Department { get; set; }
         public static string? JobTitle { get; set; }
+
+        public static string? ManagerDisplayName { get; set; }
+        public static string? ManagerMail { get; set; }
+
         public static void Clear()
         {
             Username = null;
             Email = null;
             Department = null;
             JobTitle = null;
+            ManagerDisplayName = null;
+            ManagerMail = null;
         }
     }
 }

@@ -10,6 +10,7 @@ namespace TradingLimitMVC.Controllers
 {
     public class LoginController(
         IOptionsSnapshot<LDAPAppSetting> _ldapAppSetting,
+        IGeneralService _generalService,
         ILoginService _loginService,
         ILogger<LoginController> logger) : Controller
     {
@@ -33,6 +34,8 @@ namespace TradingLimitMVC.Controllers
 
             if (!string.IsNullOrEmpty(jwtTokenModel.AccessToken))
             {
+                await _generalService.GetUserInfoByEmailAsync();
+
                 Response.Cookies.Append("AuthToken", jwtTokenModel.AccessToken, new CookieOptions
                 {
                     HttpOnly = true,

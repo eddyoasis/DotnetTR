@@ -12,6 +12,7 @@ var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 builder.Services.AddControllersWithViews();
+builder.Services.AddHttpContextAccessor();
 
 /*------------- AppSettings */
 builder.Configuration
@@ -23,6 +24,7 @@ builder.Services.Configure<SmtpAppSetting>(builder.Configuration.GetSection("Smt
 builder.Services.Configure<GeneralAppSetting>(builder.Configuration.GetSection("GeneralAppSettings"));
 builder.Services.Configure<ApprovalThresholdsAppSetting>(builder.Configuration.GetSection("AppSettings:ApprovalThresholds"));
 builder.Services.Configure<DepartmentRolesAppSetting>(builder.Configuration.GetSection("AppSettings"));
+builder.Services.Configure<PowerWorkflowAppSetting>(builder.Configuration.GetSection("PowerWorkflowAppSettings"));
 
 /*------------- DI */
 builder.Services.AddScoped<ILoginService, LoginService>();
@@ -71,6 +73,7 @@ builder.Services.AddScoped<IExchangeRateService, ExchangeRateService>();
 builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddScoped<IConfigurationHelperService, ConfigurationHelperService>();
 builder.Services.AddScoped<ITradingLimitRequestService, TradingLimitRequestService>();
+builder.Services.AddScoped<IGeneralService, GeneralService>();
 
 builder.Services.AddScoped<IApprovalWorkflowService>(provider =>
 {
