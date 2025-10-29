@@ -26,24 +26,18 @@ namespace TradingLimitMVC.Controllers
             {
                 var viewModel = new DashboardViewModel
                 {
-                    TotalPRs = await _context.PurchaseRequisitions.CountAsync(),
-                    TotalPOs = await _context.PurchaseOrders.CountAsync(),
-                    PendingApprovals = await _context.PurchaseRequisitions
-                        .CountAsync(pr => pr.CurrentStatus != WorkflowStatus.Draft &&
-                                         pr.CurrentStatus != WorkflowStatus.Approved &&
-                                         pr.CurrentStatus != WorkflowStatus.Rejected),
-                    CompletedOrders = await _context.PurchaseRequisitions
-                        .CountAsync(pr => pr.CurrentStatus == WorkflowStatus.Approved),
-                    RecentPRs = await _context.PurchaseRequisitions
-                        .Include(pr => pr.Items)
-                        .OrderByDescending(pr => pr.CreatedDate)
+                    TotalTradingLimitRequests = await _context.TradingLimitRequests.CountAsync(),
+                    PendingApprovals = await _context.TradingLimitRequests
+                        .CountAsync(tlr => tlr.Status == "Pending"),
+                    ApprovedRequests = await _context.TradingLimitRequests
+                        .CountAsync(tlr => tlr.Status == "Approved"),
+                    RejectedRequests = await _context.TradingLimitRequests
+                        .CountAsync(tlr => tlr.Status == "Rejected"),
+                    RecentRequests = await _context.TradingLimitRequests
+                        .OrderByDescending(tlr => tlr.CreatedDate)
                         .Take(5)
                         .ToListAsync(),
-                    RecentPOs = await _context.PurchaseOrders
-                        .Include(po => po.Items)
-                        .OrderByDescending(po => po.CreatedDate)
-                        .Take(5)
-                        .ToListAsync()
+                    MyPendingRequests = new List<TradingLimitRequest>()
                 };
 
                 return View(viewModel);
@@ -53,12 +47,12 @@ namespace TradingLimitMVC.Controllers
                 _logger.LogError(ex, "Error loading dashboard data");
                 var fallbackViewModel = new DashboardViewModel
                 {
-                    TotalPRs = 0,
-                    TotalPOs = 0,
+                    TotalTradingLimitRequests = 0,
                     PendingApprovals = 0,
-                    CompletedOrders = 0,
-                    RecentPRs = new List<PurchaseRequisition>(),
-                    RecentPOs = new List<PurchaseOrder>()
+                    ApprovedRequests = 0,
+                    RejectedRequests = 0,
+                    RecentRequests = new List<TradingLimitRequest>(),
+                    MyPendingRequests = new List<TradingLimitRequest>()
                 };
                 TempData["Error"] = "Error loading dashboard data. Please check your database connection.";
                 return View(fallbackViewModel);

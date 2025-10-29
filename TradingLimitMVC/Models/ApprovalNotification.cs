@@ -7,7 +7,10 @@ namespace TradingLimitMVC.Models
         public int Id { get; set; }
 
         [Required]
-        public int PurchaseRequisitionId { get; set; }
+        public int RequestId { get; set; }
+        [Required]
+        [StringLength(50)]
+        public string RequestType { get; set; } = string.Empty; // "TradingLimit" or other types
         [Required]
         [StringLength(200)]
         public string RecipientEmail { get; set; } = string.Empty;
@@ -22,7 +25,6 @@ namespace TradingLimitMVC.Models
         public DateTime? ReadDate { get; set; }
         [StringLength(500)]
         public string? Message { get; set; }
-        public virtual PurchaseRequisition PurchaseRequisition { get; set; } = null!;
     }
     public enum NotificationType
     {

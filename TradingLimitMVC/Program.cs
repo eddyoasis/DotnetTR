@@ -60,32 +60,12 @@ builder.Services.AddAuthentication(options =>
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
 options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
-// Add HTTP Client for Power Automate calls
-builder.Services.AddHttpClient<IPowerAutomateService, PowerAutomateService>();
-
 // Register custom services
-builder.Services.AddScoped<IPowerAutomateService, PowerAutomateService>();
-builder.Services.AddScoped<IPDFService, PDFService>();
-builder.Services.AddScoped<IPRPDFService, PRPDFService>();
-builder.Services.AddScoped<IPOApprovalWorkflowService, POApprovalWorkflowService>();
-builder.Services.AddScoped<IPOApprovalWorkflowService, POApprovalWorkflowService>();
 builder.Services.AddScoped<IExchangeRateService, ExchangeRateService>();
 builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddScoped<IConfigurationHelperService, ConfigurationHelperService>();
 builder.Services.AddScoped<ITradingLimitRequestService, TradingLimitRequestService>();
 builder.Services.AddScoped<IGeneralService, GeneralService>();
-
-builder.Services.AddScoped<IApprovalWorkflowService>(provider =>
-{
-    var context = provider.GetRequiredService<ApplicationDbContext>();
-    var logger = provider.GetRequiredService<ILogger<ApprovalWorkflowService>>();
-    var powerAutomate = provider.GetRequiredService<IPowerAutomateService>();
-    var exchangeRate = provider.GetRequiredService<IExchangeRateService>();
-    var environment = provider.GetRequiredService<IWebHostEnvironment>();
-    var pdfService = provider.GetRequiredService<IPDFService>();
-    var configurationHelper = provider.GetRequiredService<IConfigurationHelperService>();
-    return new ApprovalWorkflowService(context, logger, powerAutomate, exchangeRate, environment, pdfService, configurationHelper);
-});
 
 
 // Add logging
@@ -135,8 +115,7 @@ using (var scope = app.Services.CreateScope())
         // Ensure database is created
         context.Database.EnsureCreated();
 
-        // Seed the database with sample data
-        DbInitializer.Initialize(context);
+        // Note: Database seeding removed after Purchase feature cleanup
 
         logger.LogInformation("Database initialized successfully at {Time}", DateTime.Now);
     }
