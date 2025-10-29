@@ -16,6 +16,7 @@ namespace TradingLimitMVC.Data
         public DbSet<TradingLimitRequest> TradingLimitRequests { get; set; }
         public DbSet<TradingLimitRequestAttachment> TradingLimitRequestAttachments { get; set; }
         public DbSet<RefreshToken> RefreshTokens { get; set; }
+        public DbSet<ApprovalNotification> ApprovalNotifications { get; set; }
 
 
 
@@ -70,7 +71,7 @@ namespace TradingLimitMVC.Data
             // Configure TradingLimitRequest
             modelBuilder.Entity<TradingLimitRequest>(entity =>
             {
-                entity.ToTable("TradingLimitRequests");
+                entity.ToTable("Temp_TL_TradingLimitRequests");
                 entity.HasKey(e => e.Id);
 
                 entity.Property(e => e.RequestId).HasMaxLength(50);
@@ -97,7 +98,7 @@ namespace TradingLimitMVC.Data
             // Configure TradingLimitRequestAttachment
             modelBuilder.Entity<TradingLimitRequestAttachment>(entity =>
             {
-                entity.ToTable("TradingLimitRequestAttachments");
+                entity.ToTable("Temp_TL_TradingLimitRequestAttachments");
                 entity.HasKey(e => e.Id);
 
                 entity.Property(e => e.FileName).IsRequired().HasMaxLength(255);
@@ -133,6 +134,25 @@ namespace TradingLimitMVC.Data
                 entity.HasIndex(e => e.Username);
                 entity.HasIndex(e => e.ExpiresAt);
                 entity.HasIndex(e => new { e.Username, e.DeviceId });
+            });
+
+            modelBuilder.Entity<ApprovalNotification>(entity =>
+            {
+                entity.ToTable("ApprovalNotifications");
+                entity.HasKey(e => e.Id);
+
+                entity.Property(e => e.RequestType).IsRequired().HasMaxLength(50);
+                entity.Property(e => e.RecipientEmail).IsRequired().HasMaxLength(200);
+                entity.Property(e => e.RecipientName).IsRequired().HasMaxLength(100);
+                entity.Property(e => e.Type).IsRequired();
+                entity.Property(e => e.SentDate).IsRequired().HasDefaultValueSql("GETUTCDATE()");
+                entity.Property(e => e.Message).HasMaxLength(500);
+
+                // Create indexes for performance
+                entity.HasIndex(e => e.RequestId);
+                entity.HasIndex(e => e.RecipientEmail);
+                entity.HasIndex(e => e.Type);
+                entity.HasIndex(e => new { e.RequestId, e.RequestType });
             });
         }
     }

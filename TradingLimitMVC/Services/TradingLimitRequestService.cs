@@ -1,6 +1,8 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using TradingLimitMVC.Data;
 using TradingLimitMVC.Models;
+using TradingLimitMVC.Models.AppSettings;
 
 namespace TradingLimitMVC.Services
 {
@@ -24,8 +26,14 @@ namespace TradingLimitMVC.Services
     {
         private readonly ApplicationDbContext _context;
         private readonly ILogger<TradingLimitRequestService> _logger;
+        private readonly IEmailService _emailService;
+        private readonly IOptionsSnapshot<GeneralAppSetting> _generalAppSetting;
 
-        public TradingLimitRequestService(ApplicationDbContext context, ILogger<TradingLimitRequestService> logger)
+        public TradingLimitRequestService(
+            IEmailService emailService,
+            IOptionsSnapshot<GeneralAppSetting> generalAppSetting,
+            ApplicationDbContext context,
+            ILogger<TradingLimitRequestService> logger)
         {
             _context = context;
             _logger = logger;
@@ -289,5 +297,31 @@ namespace TradingLimitMVC.Services
                 throw;
             }
         }
+
+        //private async Task SendEmail(TradingLimitRequest req, string approverEmail)
+        //{
+        //    var generalAppSetting = _generalAppSetting.Value;
+        //    var domainHost = generalAppSetting.Host;
+
+        //    var recipientsTo = new List<string> { approverEmail };
+        //    var recipientsCC = new List<string>();
+        //    var subject = $"TEST [PENDING SG IT] PR: {req.RequestId}";
+        //    var body = $@"
+        //        <p>Please refer to the purchase requisition below for your approval.<br/>
+        //        Awaiting your action.</p>
+        //        <p><a href='{domainHost}/Login?ReturnUrl={domainHost}/Approval/ApproveStep/{pr.Id}'>Click here to approve</a></p>
+        //        <p>
+        //            <strong>Reference No:</strong> {pr.PRInternalNo}<br/>
+        //            <strong>Requested by:</strong> {pr.SubmittedBy}<br/>
+        //            <strong>Cost Centre:</strong> {string.Join(", ", costcenterNames)}<br/>
+        //            <strong>GST:</strong> {pr.QuotationCurrency} {pr.TotalAmount:N2}<br/>
+        //            <strong>Amount:</strong> {pr.QuotationCurrency} {pr.TotalAmount:N2}<br/>
+        //            <strong>Reason:</strong><br/>
+        //            {pr.Reason}
+        //        </p>";
+
+
+        //    await _emailService.SendEmailAsync(recipientsTo, recipientsCC, subject, body);
+        //}
     }
 }
