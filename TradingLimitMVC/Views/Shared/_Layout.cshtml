@@ -438,7 +438,7 @@
 
 <body>
     <header>
-        @if (User.Identity.IsAuthenticated)
+        @if (User.Identity?.IsAuthenticated == true)
         {
             <nav class="navbar">
                 <div class="container-fluid navbar-container">

@@ -67,10 +67,10 @@ namespace TradingLimitMVC.Services
             }
             if (string.IsNullOrEmpty(name))
             {
-                name = GetApproverName(role);
+                name = GetApproverName(role ?? "Default");
             }
 
-            return (approver, email, role,name);
+            return (approver, email, role ?? "Default", name ?? "Default Name");
         }
     }
 }

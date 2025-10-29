@@ -147,7 +147,7 @@ namespace TradingLimitMVC.Services
             }
         }
 
-        public async Task<string> GetCurrentUserEmailAsync()
+        public Task<string> GetCurrentUserEmailAsync()
         {
             try
             {
@@ -163,7 +163,7 @@ namespace TradingLimitMVC.Services
                     if (!string.IsNullOrWhiteSpace(email))
                     {
                         _logger.LogDebug("Retrieved current user email: {Email}", email);
-                        return email;
+                        return Task.FromResult(email);
                     }
                 }
 
@@ -171,16 +171,16 @@ namespace TradingLimitMVC.Services
                 if (!string.IsNullOrWhiteSpace(BaseService.Email))
                 {
                     _logger.LogDebug("Using BaseService email: {Email}", BaseService.Email);
-                    return BaseService.Email;
+                    return Task.FromResult(BaseService.Email);
                 }
 
                 _logger.LogWarning("Unable to determine current user email");
-                return string.Empty;
+                return Task.FromResult(string.Empty);
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error getting current user email");
-                return string.Empty;
+                return Task.FromResult(string.Empty);
             }
         }
 

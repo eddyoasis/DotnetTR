@@ -14,7 +14,7 @@ namespace TradingLimitMVC.Services
          IOptionsSnapshot<SmtpAppSetting> _smtpAppSetting
          ) : IEmailService
     {
-        public async Task SendEmailAsync(List<string> recipientsTo, List<string> recipientsCC, string subject, string body)
+        public Task SendEmailAsync(List<string> recipientsTo, List<string> recipientsCC, string subject, string body)
         {
             var smtpAppSetting = _smtpAppSetting.Value;
 
@@ -57,13 +57,16 @@ namespace TradingLimitMVC.Services
 
                 smtpClient.Send(mailMessage);
             }
-            catch (SmtpException ex)
+            catch (SmtpException)
             {
+                // Log exception if needed
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-
+                // Log exception if needed
             }
+            
+            return Task.CompletedTask;
         }
     }
 }

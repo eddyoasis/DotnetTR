@@ -2,8 +2,7 @@
 {
     public class PowerWorkflowAppSetting
     {
-        public string GetUserProfileUrl { get; set; }
-        public string ApiKey { get; set; }
-
+        public string GetUserProfileUrl { get; set; } = string.Empty;
+        public string ApiKey { get; set; } = string.Empty;
     }
 }

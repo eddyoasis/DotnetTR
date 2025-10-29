@@ -32,13 +32,13 @@ namespace TradingLimitMVC.Middlewares
                 });
             }
 
-            if (!hasReturnUrl && _whiteList.Contains(context.Request.Path.Value))
+            if (!hasReturnUrl && _whiteList.Contains(context.Request.Path.Value ?? ""))
             {
                 await next(context);
                 return;
             }
 
-            if (!context.User.Identity.IsAuthenticated) // Always false at this stage
+            if (context.User.Identity?.IsAuthenticated != true) // Always false at this stage
             {
                 if (context.Request.Cookies.TryGetValue("AuthToken", out var authToken))
                 {
@@ -79,7 +79,7 @@ namespace TradingLimitMVC.Middlewares
                     if (hasReturnUrl)
                     {
                         context.Response.Cookies.Delete("WebReturnUrl");
-                        context.Response.Redirect($"{returnUrl}?approverRole={jwtInfo.JobTitle}");
+                        context.Response.Redirect($"{returnUrl}?approverRole={jwtInfo?.JobTitle ?? ""}");
                         return;
                     }
 

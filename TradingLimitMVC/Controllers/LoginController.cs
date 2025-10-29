@@ -74,7 +74,7 @@ namespace TradingLimitMVC.Controllers
             return Json(new { isSuccess = false });
         }
 
-        public async Task<IActionResult> Logout()
+        public IActionResult Logout()
         {
             Response.Cookies.Delete("AuthToken");
             return RedirectToAction("Index", "Login");

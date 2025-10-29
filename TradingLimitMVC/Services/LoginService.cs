@@ -52,7 +52,7 @@ namespace TradingLimitMVC.Services
                 jwtTokenModel = await _authNugetService.Login(_ldapAppSetting, _jwtAppSetting, username, password);
                 return jwtTokenModel;
             }
-            catch (LdapException ex)
+            catch (LdapException)
             {
                 return jwtTokenModel;
             }
@@ -67,7 +67,7 @@ namespace TradingLimitMVC.Services
                 jwtTokenModel = await _authNugetService.LoginByPass(_jwtAppSetting, username, password);
                 return jwtTokenModel;
             }
-            catch (LdapException ex)
+            catch (LdapException)
             {
                 return jwtTokenModel;
             }

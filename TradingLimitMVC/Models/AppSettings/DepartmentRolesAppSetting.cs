@@ -2,12 +2,12 @@ namespace TradingLimitMVC.Models.AppSettings
 {
     public class DepartmentRolesAppSetting
     {
-        public Dictionary<string, CostCenterRole> DepartmentRoles { get; set; }
+        public Dictionary<string, CostCenterRole> DepartmentRoles { get; set; } = new Dictionary<string, CostCenterRole>();
     }
 
     public class CostCenterRole
     {
-        public string HOD { get; set; }
-        public string Email { get; set; }
+        public string HOD { get; set; } = string.Empty;
+        public string Email { get; set; } = string.Empty;
     }
 }
