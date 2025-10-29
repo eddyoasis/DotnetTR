@@ -1,0 +1,310 @@
+@model IEnumerable<TradingLimitMVC.Models.TradingLimitRequest>
+@{
+    ViewData["Title"] = "My Trading Limit Requests";
+}
+
+<style>
+    body {
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        background-color: #f8f9fa;
+    }
+
+    .page-wrapper {
+        background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+        min-height: 100vh;
+        padding: 20px 0;
+    }
+
+    .main-container {
+        background: linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%);
+        border: none;
+        margin: 20px auto;
+        padding: 0;
+        border-radius: 15px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        overflow: hidden;
+        max-width: 1400px;
+    }
+
+    .header-section {
+        background: linear-gradient(135deg, #28a745, #20a545);
+        border-bottom: none;
+        padding: 20px 25px;
+        color: white;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .header-title {
+        font-size: 24px;
+        font-weight: 700;
+        margin: 0;
+        text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    }
+
+    .btn-create {
+        background: #17a2b8;
+        border: none;
+        color: white;
+        padding: 10px 20px;
+        border-radius: 8px;
+        font-weight: 600;
+        text-decoration: none;
+        transition: all 0.3s ease;
+    }
+
+    .btn-create:hover {
+        background: #138496;
+        transform: translateY(-2px);
+    }
+
+    .table-container {
+        padding: 25px;
+    }
+
+    .table-responsive {
+        border-radius: 10px;
+        overflow: hidden;
+        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+    }
+
+    .table {
+        margin: 0;
+    }
+
+    .table thead th {
+        background: linear-gradient(135deg, #495057, #343a40);
+        color: white;
+        border: none;
+        padding: 15px;
+        font-weight: 600;
+        text-align: center;
+    }
+
+    .table tbody td {
+        padding: 12px 15px;
+        vertical-align: middle;
+        border-bottom: 1px solid #dee2e6;
+        text-align: center;
+    }
+
+    .table tbody tr:hover {
+        background-color: #f8f9fa;
+    }
+
+    .status-badge {
+        padding: 5px 12px;
+        border-radius: 20px;
+        font-size: 12px;
+        font-weight: 600;
+        text-transform: uppercase;
+    }
+
+    .status-draft {
+        background-color: #6c757d;
+        color: white;
+    }
+
+    .status-submitted {
+        background-color: #007bff;
+        color: white;
+    }
+
+    .status-approved {
+        background-color: #28a745;
+        color: white;
+    }
+
+    .status-rejected {
+        background-color: #dc3545;
+        color: white;
+    }
+
+    .btn-action {
+        padding: 5px 10px;
+        margin: 2px;
+        border-radius: 5px;
+        text-decoration: none;
+        font-size: 12px;
+        font-weight: 500;
+    }
+
+    .btn-view {
+        background-color: #17a2b8;
+        color: white;
+    }
+
+    .btn-edit {
+        background-color: #ffc107;
+        color: #212529;
+    }
+
+    .btn-delete {
+        background-color: #dc3545;
+        color: white;
+    }
+
+    .stats-row {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 20px;
+        margin-bottom: 30px;
+    }
+
+    .stat-card {
+        background: white;
+        padding: 20px;
+        border-radius: 10px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+        text-align: center;
+        border-left: 4px solid;
+    }
+
+    .stat-card.draft {
+        border-left-color: #6c757d;
+    }
+
+    .stat-card.submitted {
+        border-left-color: #007bff;
+    }
+
+    .stat-card.approved {
+        border-left-color: #28a745;
+    }
+
+    .stat-card.rejected {
+        border-left-color: #dc3545;
+    }
+
+    .stat-number {
+        font-size: 2rem;
+        font-weight: 700;
+        margin-bottom: 5px;
+    }
+
+    .stat-label {
+        color: #6c757d;
+        font-weight: 500;
+    }
+</style>
+
+<div class="page-wrapper">
+    <div class="main-container">
+        <div class="header-section">
+            <h1 class="header-title">My Trading Limit Requests</h1>
+            <a asp-action="Create" class="btn-create">
+                <i class="fas fa-plus"></i> New Request
+            </a>
+        </div>
+
+        <div class="table-container">
+            @if (TempData["SuccessMessage"] != null)
+            {
+                <div class="alert alert-success alert-dismissible fade show" role="alert">
+                    @TempData["SuccessMessage"]
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+            }
+
+            @if (TempData["ErrorMessage"] != null)
+            {
+                <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                    @TempData["ErrorMessage"]
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+            }
+
+            <!-- Statistics Cards -->
+            @{
+                var drafts = Model.Where(r => r.Status == "Draft").Count();
+                var submitted = Model.Where(r => r.Status == "Submitted").Count();
+                var approved = Model.Where(r => r.Status == "Approved").Count();
+                var rejected = Model.Where(r => r.Status == "Rejected").Count();
+            }
+
+            <div class="stats-row">
+                <div class="stat-card draft">
+                    <div class="stat-number">@drafts</div>
+                    <div class="stat-label">Draft</div>
+                </div>
+                <div class="stat-card submitted">
+                    <div class="stat-number">@submitted</div>
+                    <div class="stat-label">Submitted</div>
+                </div>
+                <div class="stat-card approved">
+                    <div class="stat-number">@approved</div>
+                    <div class="stat-label">Approved</div>
+                </div>
+                <div class="stat-card rejected">
+                    <div class="stat-number">@rejected</div>
+                    <div class="stat-label">Rejected</div>
+                </div>
+            </div>
+
+            <div class="table-responsive">
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>Request ID</th>
+                            <th>Request Date</th>
+                            <th>TR Code</th>
+                            <th>Client Code</th>
+                            <th>Request Type</th>
+                            <th>GL Proposed Limit</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (Model.Any())
+                        {
+                            @foreach (var item in Model)
+                            {
+                                <tr>
+                                    <td>@Html.DisplayFor(modelItem => item.RequestId)</td>
+                                    <td>@item.RequestDate.ToString("MMM dd, yyyy")</td>
+                                    <td>@Html.DisplayFor(modelItem => item.TRCode)</td>
+                                    <td>@Html.DisplayFor(modelItem => item.ClientCode)</td>
+                                    <td>@Html.DisplayFor(modelItem => item.RequestType)</td>
+                                    <td>@item.GLProposedLimit.ToString("C")</td>
+                                    <td>
+                                        <span class="status-badge status-@item.Status.ToLower()">
+                                            @Html.DisplayFor(modelItem => item.Status)
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <a asp-action="Details" asp-route-id="@item.Id" class="btn-action btn-view" title="View Details">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                        @if (item.Status == "Draft")
+                                        {
+                                            <a asp-action="Edit" asp-route-id="@item.Id" class="btn-action btn-edit" title="Edit">
+                                                <i class="fas fa-edit"></i>
+                                            </a>
+                                            <a asp-action="Delete" asp-route-id="@item.Id" class="btn-action btn-delete" title="Delete">
+                                                <i class="fas fa-trash"></i>
+                                            </a>
+                                        }
+                                    </td>
+                                </tr>
+                            }
+                        }
+                        else
+                        {
+                            <tr>
+                                <td colspan="8" class="text-center text-muted">
+                                    <div style="padding: 20px;">
+                                        <i class="fas fa-inbox" style="font-size: 48px; color: #ccc; margin-bottom: 10px;"></i>
+                                        <p>You haven't created any trading limit requests yet.</p>
+                                        <a asp-action="Create" class="btn btn-primary">Create Your First Request</a>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>

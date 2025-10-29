@@ -505,6 +505,32 @@
                             </li>
                         </ul>
                     </li>
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
+                            <i class="fas fa-chart-line"></i>
+                            <span>Trading Limit</span>
+                        </a>
+                        <ul class="dropdown-menu">
+                            <li>
+                                <a class="dropdown-item" href="@Url.Action("Create", "TradingLimitRequest")">
+                                    <i class="fas fa-plus-circle"></i>
+                                    <span>New Request</span>
+                                </a>
+                            </li>
+                            <li>
+                                <a class="dropdown-item" href="@Url.Action("Index", "TradingLimitRequest")">
+                                    <i class="fas fa-list"></i>
+                                    <span>All Requests</span>
+                                </a>
+                            </li>
+                            <li>
+                                <a class="dropdown-item" href="@Url.Action("MyRequests", "TradingLimitRequest")">
+                                    <i class="fas fa-user-check"></i>
+                                    <span>My Requests</span>
+                                </a>
+                            </li>
+                        </ul>
+                    </li>
                     <li class="nav-item">
                         <a class="nav-link" href="@Url.Action("Index", "PurchaseRequisitionApproval")">
                             <i class="fas fa-check-circle"></i>

@@ -23,6 +23,8 @@ namespace TradingLimitMVC.Data
         public DbSet<PurchaseOrderApproval> PurchaseOrderApprovals { get; set; }
         public DbSet<POApprovalWorkflowStep> POApprovalWorkflowSteps { get; set; }
         public DbSet<POStatusHistory> POStatusHistories { get; set; }
+        public DbSet<TradingLimitRequest> TradingLimitRequests { get; set; }
+        public DbSet<TradingLimitRequestAttachment> TradingLimitRequestAttachments { get; set; }
 
 
 
@@ -403,6 +405,51 @@ namespace TradingLimitMVC.Data
                 entity.HasOne(e => e.PurchaseOrder)
                     .WithMany(po => po.Approvals)
                     .HasForeignKey(e => e.PurchaseOrderId)
+                    .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            // Configure TradingLimitRequest
+            modelBuilder.Entity<TradingLimitRequest>(entity =>
+            {
+                entity.ToTable("TradingLimitRequests");
+                entity.HasKey(e => e.Id);
+
+                entity.Property(e => e.RequestId).HasMaxLength(50);
+                entity.Property(e => e.TRCode).IsRequired().HasMaxLength(50);
+                entity.Property(e => e.ClientCode).IsRequired().HasMaxLength(50);
+                entity.Property(e => e.RequestType).IsRequired().HasMaxLength(100);
+                entity.Property(e => e.BriefDescription).IsRequired().HasMaxLength(1000);
+                entity.Property(e => e.GLCurrentLimit).HasColumnType("decimal(18,2)");
+                entity.Property(e => e.GLProposedLimit).HasColumnType("decimal(18,2)");
+                entity.Property(e => e.CurrentCurrentLimit).HasColumnType("decimal(18,2)");
+                entity.Property(e => e.CurrentProposedLimit).HasColumnType("decimal(18,2)");
+                entity.Property(e => e.CreatedBy).HasMaxLength(100);
+                entity.Property(e => e.ModifiedBy).HasMaxLength(100);
+                entity.Property(e => e.Status).HasMaxLength(50);
+                entity.Property(e => e.SubmittedBy).HasMaxLength(100);
+                entity.Property(e => e.CreatedDate).HasDefaultValueSql("GETDATE()");
+
+                entity.HasIndex(e => e.RequestId).IsUnique().HasFilter("[RequestId] IS NOT NULL");
+                entity.HasIndex(e => e.TRCode);
+                entity.HasIndex(e => e.ClientCode);
+                entity.HasIndex(e => e.Status);
+            });
+
+            // Configure TradingLimitRequestAttachment
+            modelBuilder.Entity<TradingLimitRequestAttachment>(entity =>
+            {
+                entity.ToTable("TradingLimitRequestAttachments");
+                entity.HasKey(e => e.Id);
+
+                entity.Property(e => e.FileName).IsRequired().HasMaxLength(255);
+                entity.Property(e => e.FilePath).IsRequired().HasMaxLength(255);
+                entity.Property(e => e.ContentType).IsRequired().HasMaxLength(100);
+                entity.Property(e => e.UploadedBy).HasMaxLength(100);
+                entity.Property(e => e.UploadDate).HasDefaultValueSql("GETDATE()");
+
+                entity.HasOne(e => e.TradingLimitRequest)
+                    .WithMany(tr => tr.Attachments)
+                    .HasForeignKey(e => e.TradingLimitRequestId)
                     .OnDelete(DeleteBehavior.Cascade);
             });
         }

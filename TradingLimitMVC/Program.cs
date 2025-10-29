@@ -70,6 +70,7 @@ builder.Services.AddScoped<IPOApprovalWorkflowService, POApprovalWorkflowService
 builder.Services.AddScoped<IExchangeRateService, ExchangeRateService>();
 builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddScoped<IConfigurationHelperService, ConfigurationHelperService>();
+builder.Services.AddScoped<ITradingLimitRequestService, TradingLimitRequestService>();
 
 builder.Services.AddScoped<IApprovalWorkflowService>(provider =>
 {

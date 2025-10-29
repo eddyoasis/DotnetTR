@@ -1,0 +1,294 @@
+@model TradingLimitMVC.Models.TradingLimitRequest
+@{
+    ViewData["Title"] = "Create Trading Limit Request";
+}
+
+<style>
+    body {
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        background-color: #f8f9fa;
+    }
+
+    .page-wrapper {
+        background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+        min-height: 100vh;
+        padding: 20px 0;
+    }
+
+    .main-container {
+        background: linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%);
+        border: none;
+        margin: 20px auto;
+        padding: 0;
+        border-radius: 15px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        overflow: hidden;
+        max-width: 1000px;
+    }
+
+    .header-section {
+        background: linear-gradient(135deg, #0066cc, #004499);
+        border-bottom: none;
+        padding: 20px 25px;
+        color: white;
+        text-align: center;
+    }
+
+    .header-title {
+        font-size: 24px;
+        font-weight: 700;
+        margin: 0;
+        text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    }
+
+    .form-content {
+        padding: 25px;
+    }
+
+    .form-section {
+        margin-bottom: 30px;
+        background: #ffffff;
+        border-radius: 10px;
+        padding: 20px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+    }
+
+    .section-title {
+        font-size: 16px;
+        font-weight: 600;
+        color: #495057;
+        margin-bottom: 20px;
+        padding-bottom: 10px;
+        border-bottom: 2px solid #e9ecef;
+    }
+
+    .form-group {
+        margin-bottom: 20px;
+    }
+
+    .form-label {
+        display: block;
+        margin-bottom: 5px;
+        font-weight: 600;
+        color: #495057;
+        font-size: 14px;
+    }
+
+    .form-control {
+        width: 100%;
+        padding: 10px 12px;
+        border: 2px solid #e1e5e9;
+        border-radius: 8px;
+        font-size: 14px;
+        transition: all 0.3s ease;
+        background-color: #ffffff;
+    }
+
+    .form-control:focus {
+        border-color: #0066cc;
+        outline: none;
+        box-shadow: 0 0 0 0.2rem rgba(0, 102, 204, 0.25);
+    }
+
+    .form-control.required {
+        background-color: #fffbf0;
+    }
+
+    .form-row {
+        display: flex;
+        gap: 20px;
+        margin-bottom: 20px;
+    }
+
+    .form-col {
+        flex: 1;
+    }
+
+    .form-col-half {
+        flex: 0 0 48%;
+    }
+
+    .btn-group {
+        display: flex;
+        gap: 10px;
+        justify-content: center;
+        margin-top: 30px;
+        padding-top: 20px;
+        border-top: 1px solid #e9ecef;
+    }
+
+    .btn {
+        padding: 12px 30px;
+        border: none;
+        border-radius: 8px;
+        font-weight: 600;
+        text-decoration: none;
+        transition: all 0.3s ease;
+        cursor: pointer;
+        font-size: 14px;
+    }
+
+    .btn-primary {
+        background: linear-gradient(135deg, #0066cc, #004499);
+        color: white;
+    }
+
+    .btn-primary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(0, 102, 204, 0.4);
+    }
+
+    .btn-secondary {
+        background: #6c757d;
+        color: white;
+    }
+
+    .btn-secondary:hover {
+        background: #5a6268;
+        transform: translateY(-2px);
+    }
+
+    .text-danger {
+        color: #dc3545 !important;
+        font-size: 12px;
+        margin-top: 5px;
+    }
+
+    .supporting-docs {
+        background: #f8f9fa;
+        border: 2px dashed #dee2e6;
+        border-radius: 8px;
+        padding: 20px;
+        text-align: center;
+        margin-top: 10px;
+    }
+
+    .upload-icon {
+        font-size: 48px;
+        color: #6c757d;
+        margin-bottom: 10px;
+    }
+</style>
+
+<div class="page-wrapper">
+    <div class="main-container">
+        <div class="header-section">
+            <h1 class="header-title">Trading Limit Request Form</h1>
+        </div>
+
+        <div class="form-content">
+            <form asp-action="Create" method="post" enctype="multipart/form-data">
+                <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+
+                <!-- Basic Information Section -->
+                <div class="form-section">
+                    <h3 class="section-title">Request Information</h3>
+                    
+                    <div class="form-row">
+                        <div class="form-col">
+                            <label asp-for="RequestDate" class="form-label">Request Date <span class="text-danger">*</span></label>
+                            <input asp-for="RequestDate" class="form-control required" type="date" />
+                            <span asp-validation-for="RequestDate" class="text-danger"></span>
+                        </div>
+                        <div class="form-col">
+                            <label asp-for="LimitEndDate" class="form-label">Limit End Date <span class="text-danger">*</span></label>
+                            <input asp-for="LimitEndDate" class="form-control required" type="date" />
+                            <span asp-validation-for="LimitEndDate" class="text-danger"></span>
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-col">
+                            <label asp-for="TRCode" class="form-label">TR Code <span class="text-danger">*</span></label>
+                            <input asp-for="TRCode" class="form-control required" placeholder="Enter TR Code" />
+                            <span asp-validation-for="TRCode" class="text-danger"></span>
+                        </div>
+                        <div class="form-col">
+                            <label asp-for="ClientCode" class="form-label">Client Code <span class="text-danger">*</span></label>
+                            <input asp-for="ClientCode" class="form-control required" placeholder="Enter Client Code" />
+                            <span asp-validation-for="ClientCode" class="text-danger"></span>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label asp-for="RequestType" class="form-label">Request Type <span class="text-danger">*</span></label>
+                        <select asp-for="RequestType" class="form-control required">
+                            <option value="">Select Request Type</option>
+                            <option value="Increase Limit">Increase Limit</option>
+                            <option value="Decrease Limit">Decrease Limit</option>
+                            <option value="New Limit">New Limit</option>
+                            <option value="Cancel Limit">Cancel Limit</option>
+                        </select>
+                        <span asp-validation-for="RequestType" class="text-danger"></span>
+                    </div>
+
+                    <div class="form-group">
+                        <label asp-for="BriefDescription" class="form-label">Brief Description <span class="text-danger">*</span></label>
+                        <textarea asp-for="BriefDescription" class="form-control required" rows="3" placeholder="Enter brief description of the request"></textarea>
+                        <span asp-validation-for="BriefDescription" class="text-danger"></span>
+                    </div>
+                </div>
+
+                <!-- Limit Information Section -->
+                <div class="form-section">
+                    <h3 class="section-title">Limit Information</h3>
+                    
+                    <div class="form-row">
+                        <div class="form-col">
+                            <label asp-for="GLCurrentLimit" class="form-label">GL Current Limit <span class="text-danger">*</span></label>
+                            <input asp-for="GLCurrentLimit" class="form-control required" type="number" step="0.01" placeholder="0.00" />
+                            <span asp-validation-for="GLCurrentLimit" class="text-danger"></span>
+                        </div>
+                        <div class="form-col">
+                            <label asp-for="GLProposedLimit" class="form-label">GL Proposed Limit <span class="text-danger">*</span></label>
+                            <input asp-for="GLProposedLimit" class="form-control required" type="number" step="0.01" placeholder="0.00" />
+                            <span asp-validation-for="GLProposedLimit" class="text-danger"></span>
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-col">
+                            <label asp-for="CurrentCurrentLimit" class="form-label">Current Current Limit <span class="text-danger">*</span></label>
+                            <input asp-for="CurrentCurrentLimit" class="form-control required" type="number" step="0.01" placeholder="0.00" />
+                            <span asp-validation-for="CurrentCurrentLimit" class="text-danger"></span>
+                        </div>
+                        <div class="form-col">
+                            <label asp-for="CurrentProposedLimit" class="form-label">Current Proposed Limit <span class="text-danger">*</span></label>
+                            <input asp-for="CurrentProposedLimit" class="form-control required" type="number" step="0.01" placeholder="0.00" />
+                            <span asp-validation-for="CurrentProposedLimit" class="text-danger"></span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Supporting Documents Section -->
+                <div class="form-section">
+                    <h3 class="section-title">Supporting Document</h3>
+                    <div class="supporting-docs">
+                        <div class="upload-icon">
+                            <i class="fas fa-cloud-upload-alt"></i>
+                        </div>
+                        <p><strong>Attach a file</strong></p>
+                        <input type="file" id="fileUpload" name="attachments" multiple accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png" class="form-control" style="margin-top: 10px;" />
+                        <p class="text-muted" style="margin-top: 10px; font-size: 12px;">
+                            Supported formats: PDF, DOC, DOCX, XLS, XLSX, JPG, PNG (Max 10MB per file)
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Form Buttons -->
+                <div class="btn-group">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save"></i> Save Draft
+                    </button>
+                    <a asp-action="Index" class="btn btn-secondary">
+                        <i class="fas fa-times"></i> Cancel
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+}
