@@ -138,7 +138,21 @@ namespace TradingLimitMVC.Models
 
         // Helper properties
         [NotMapped]
-        public bool IsActive => Status == "Pending" || Status == "InProgress";
+        public bool IsActive
+        {
+            get
+            {
+                // For sequential workflows, only the current step is active
+                if (ApprovalWorkflow?.WorkflowType == "Sequential")
+                {
+                    return StepNumber == ApprovalWorkflow.CurrentStep && 
+                           (Status == "Pending" || Status == "InProgress");
+                }
+                
+                // For parallel workflows, any pending/in-progress step is active
+                return Status == "Pending" || Status == "InProgress";
+            }
+        }
 
         [NotMapped]
         public bool IsCompleted => Status == "Approved" || Status == "Rejected" || Status == "Skipped";

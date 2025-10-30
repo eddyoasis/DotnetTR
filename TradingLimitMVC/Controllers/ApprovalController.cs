@@ -40,7 +40,32 @@ namespace TradingLimitMVC.Controllers
             try
             {
                 var currentUser = await _generalService.GetCurrentUserEmailAsync();
+                _logger.LogInformation("Current user email: {Email}", currentUser);
+                
                 var pendingRequests = await _tradingLimitRequestService.GetPendingApprovalsForUserAsync(currentUser);
+                _logger.LogInformation("Found {Count} pending requests for user {Email}", pendingRequests.Count(), currentUser);
+                
+                // Debug: Log all requests in the system to understand what's available
+                var allRequests = await _context.TradingLimitRequests
+                    .Include(r => r.ApprovalWorkflow)
+                        .ThenInclude(w => w!.ApprovalSteps)
+                    .ToListAsync();
+                
+                _logger.LogInformation("Total requests in system: {Count}", allRequests.Count);
+                foreach (var req in allRequests.Take(5)) // Log first 5 for debugging
+                {
+                    _logger.LogInformation("Request {Id}: Status={Status}, ApprovalEmail={ApprovalEmail}, HasWorkflow={HasWorkflow}",
+                        req.Id, req.Status, req.ApprovalEmail, req.ApprovalWorkflow != null);
+                    
+                    if (req.ApprovalWorkflow != null)
+                    {
+                        foreach (var step in req.ApprovalWorkflow.ApprovalSteps ?? new List<ApprovalStep>())
+                        {
+                            _logger.LogInformation("  Step {StepNum}: Email={Email}, Status={Status}, IsActive={IsActive}",
+                                step.StepNumber, step.ApproverEmail, step.Status, step.IsActive);
+                        }
+                    }
+                }
                 
                 return View(pendingRequests);
             }
@@ -74,12 +99,19 @@ namespace TradingLimitMVC.Controllers
                 var currentUser = await _generalService.GetCurrentUserEmailAsync();
                 var canApprove = await CanUserApproveRequestAsync(currentUser, request);
 
+                // Get approval history from ApprovalNotifications
+                var approvalHistory = await _context.ApprovalNotifications
+                    .Where(n => n.RequestId == id)
+                    .OrderBy(n => n.SentDate)
+                    .ToListAsync();
+
                 var viewModel = new ApprovalDetailsViewModel
                 {
                     Request = request,
                     CanApprove = canApprove,
                     CurrentUserEmail = currentUser,
-                    ReturnUrl = returnUrl
+                    ReturnUrl = returnUrl,
+                    ApprovalHistory = approvalHistory
                 };
 
                 return View(viewModel);
@@ -126,20 +158,92 @@ namespace TradingLimitMVC.Controllers
                     return RedirectToAction("Details", new { id = model.RequestId });
                 }
 
-                // Update request status
-                request.Status = "Approved";
-                request.ModifiedDate = DateTime.UtcNow;
-                request.ModifiedBy = currentUserName;
+                // Handle multi-approval workflow vs single approval workflow
+                if (request.ApprovalWorkflow != null)
+                {
+                    // Multi-approval workflow: Find the next approvable step for this user
+                    var approvableSteps = request.ApprovalWorkflow.ApprovalSteps
+                        .Where(s => s.ApproverEmail.Equals(currentUser, StringComparison.OrdinalIgnoreCase))
+                        .Where(s => {
+                            if (request.ApprovalWorkflow.WorkflowType == "Sequential")
+                                return s.IsActive && (s.Status == "Pending" || s.Status == "InProgress");
+                            else // Parallel
+                                return s.Status == "Pending" || s.Status == "InProgress";
+                        })
+                        .OrderBy(s => s.StepNumber)
+                        .ToList();
+                    
+                    if (approvableSteps.Any())
+                    {
+                        // Approve the first available step (lowest step number)
+                        var stepToApprove = approvableSteps.First();
+                        var success = await _approvalWorkflowService.ProcessApprovalStepAsync(stepToApprove.Id, currentUser, "Approved", model.Comments);
+                        if (!success)
+                        {
+                            TempData["ErrorMessage"] = "Failed to process approval step.";
+                            return RedirectToAction("Details", new { id = model.RequestId });
+                        }
+                        
+                        // Log which step was approved for debugging
+                        _logger.LogInformation("User {User} approved step {StepNumber} of request {RequestId}", 
+                            currentUser, stepToApprove.StepNumber, request.RequestId);
+                    }
+                    else
+                    {
+                        TempData["ErrorMessage"] = "No approvable steps found for your user.";
+                        return RedirectToAction("Details", new { id = model.RequestId });
+                    }
+                }
+                else
+                {
+                    // Legacy single-approver workflow: Update request status directly
+                    request.Status = "Approved";
+                    request.ModifiedDate = DateTime.UtcNow;
+                    request.ModifiedBy = currentUserName;
+                    request.ApprovedBy = currentUser;
+                    request.ApprovedDate = DateTime.UtcNow;
+                    request.ApprovalComments = model.Comments;
 
-                // Add approval record
-                await AddApprovalRecordAsync(request.Id, currentUser, currentUserName, "Approved", model.Comments);
+                    // Add approval record
+                    await AddApprovalRecordAsync(request.Id, currentUser, currentUserName, "Approved", model.Comments);
 
-                await _context.SaveChangesAsync();
+                    await _context.SaveChangesAsync();
+                }
 
                 // Send notification
                 await SendApprovalNotificationAsync(request, NotificationType.Approved, model.Comments);
 
-                TempData["SuccessMessage"] = $"Trading limit request {request.RequestId} has been approved successfully.";
+                // Different success messages for single vs multi-approval workflows
+                if (request.ApprovalWorkflow != null)
+                {
+                    // Reload to check final status after workflow processing
+                    await _context.Entry(request).ReloadAsync();
+                    await _context.Entry(request.ApprovalWorkflow).ReloadAsync();
+                    
+                    // Count remaining approvable steps for this user
+                    var remainingUserSteps = request.ApprovalWorkflow.ApprovalSteps
+                        .Where(s => s.ApproverEmail.Equals(currentUser, StringComparison.OrdinalIgnoreCase))
+                        .Where(s => s.Status == "Pending" || s.Status == "InProgress")
+                        .Count();
+                    
+                    if (request.Status == "Approved")
+                    {
+                        TempData["SuccessMessage"] = $"Trading limit request {request.RequestId} has been fully approved and completed.";
+                    }
+                    else if (remainingUserSteps > 0)
+                    {
+                        TempData["SuccessMessage"] = $"Your approval has been recorded for trading limit request {request.RequestId}. You have {remainingUserSteps} more step(s) to approve.";
+                    }
+                    else
+                    {
+                        TempData["SuccessMessage"] = $"Your approval for trading limit request {request.RequestId} has been recorded. The workflow will continue to the next approver.";
+                    }
+                }
+                else
+                {
+                    TempData["SuccessMessage"] = $"Trading limit request {request.RequestId} has been approved successfully.";
+                }
+                
                 _logger.LogInformation("Request {RequestId} approved by {User}", request.RequestId, currentUser);
 
                 return RedirectToAction(nameof(Index));
@@ -186,15 +290,53 @@ namespace TradingLimitMVC.Controllers
                     return RedirectToAction("Details", new { id = model.RequestId });
                 }
 
-                // Update request status
-                request.Status = "Rejected";
-                request.ModifiedDate = DateTime.UtcNow;
-                request.ModifiedBy = currentUserName;
+                // Handle multi-approval workflow vs single approval workflow
+                if (request.ApprovalWorkflow != null)
+                {
+                    // Multi-approval workflow: Find the next approvable step for this user
+                    var approvableSteps = request.ApprovalWorkflow.ApprovalSteps
+                        .Where(s => s.ApproverEmail.Equals(currentUser, StringComparison.OrdinalIgnoreCase))
+                        .Where(s => {
+                            if (request.ApprovalWorkflow.WorkflowType == "Sequential")
+                                return s.IsActive && (s.Status == "Pending" || s.Status == "InProgress");
+                            else // Parallel
+                                return s.Status == "Pending" || s.Status == "InProgress";
+                        })
+                        .OrderBy(s => s.StepNumber)
+                        .ToList();
+                    
+                    if (approvableSteps.Any())
+                    {
+                        // Reject the first available step (lowest step number)
+                        var stepToReject = approvableSteps.First();
+                        var success = await _approvalWorkflowService.ProcessApprovalStepAsync(stepToReject.Id, currentUser, "Rejected", model.Comments);
+                        if (!success)
+                        {
+                            TempData["ErrorMessage"] = "Failed to process rejection step.";
+                            return RedirectToAction("Details", new { id = model.RequestId });
+                        }
+                    }
+                    else
+                    {
+                        TempData["ErrorMessage"] = "No approvable steps found for your user.";
+                        return RedirectToAction("Details", new { id = model.RequestId });
+                    }
+                }
+                else
+                {
+                    // Legacy single-approver workflow: Update request status directly
+                    request.Status = "Rejected";
+                    request.ModifiedDate = DateTime.UtcNow;
+                    request.ModifiedBy = currentUserName;
+                    request.ApprovedBy = currentUser;
+                    request.ApprovedDate = DateTime.UtcNow;
+                    request.ApprovalComments = model.Comments;
 
-                // Add approval record
-                await AddApprovalRecordAsync(request.Id, currentUser, currentUserName, "Rejected", model.Comments);
+                    // Add approval record
+                    await AddApprovalRecordAsync(request.Id, currentUser, currentUserName, "Rejected", model.Comments);
 
-                await _context.SaveChangesAsync();
+                    await _context.SaveChangesAsync();
+                }
 
                 // Send notification
                 await SendApprovalNotificationAsync(request, NotificationType.Rejected, model.Comments);
@@ -246,15 +388,53 @@ namespace TradingLimitMVC.Controllers
                     return RedirectToAction("Details", new { id = model.RequestId });
                 }
 
-                // Update request status
-                request.Status = "Revision Required";
-                request.ModifiedDate = DateTime.UtcNow;
-                request.ModifiedBy = currentUserName;
+                // Handle multi-approval workflow vs single approval workflow
+                if (request.ApprovalWorkflow != null)
+                {
+                    // Multi-approval workflow: Find the next approvable step for this user
+                    var approvableSteps = request.ApprovalWorkflow.ApprovalSteps
+                        .Where(s => s.ApproverEmail.Equals(currentUser, StringComparison.OrdinalIgnoreCase))
+                        .Where(s => {
+                            if (request.ApprovalWorkflow.WorkflowType == "Sequential")
+                                return s.IsActive && (s.Status == "Pending" || s.Status == "InProgress");
+                            else // Parallel
+                                return s.Status == "Pending" || s.Status == "InProgress";
+                        })
+                        .OrderBy(s => s.StepNumber)
+                        .ToList();
+                    
+                    if (approvableSteps.Any())
+                    {
+                        // Request revision on the first available step (lowest step number)
+                        var stepToRevise = approvableSteps.First();
+                        var success = await _approvalWorkflowService.ProcessApprovalStepAsync(stepToRevise.Id, currentUser, "Revision Required", model.Comments);
+                        if (!success)
+                        {
+                            TempData["ErrorMessage"] = "Failed to process revision request.";
+                            return RedirectToAction("Details", new { id = model.RequestId });
+                        }
+                    }
+                    else
+                    {
+                        TempData["ErrorMessage"] = "No approvable steps found for your user.";
+                        return RedirectToAction("Details", new { id = model.RequestId });
+                    }
+                }
+                else
+                {
+                    // Legacy single-approver workflow: Update request status directly
+                    request.Status = "Revision Required";
+                    request.ModifiedDate = DateTime.UtcNow;
+                    request.ModifiedBy = currentUserName;
+                    request.ApprovedBy = currentUser;
+                    request.ApprovedDate = DateTime.UtcNow;
+                    request.ApprovalComments = model.Comments;
 
-                // Add approval record
-                await AddApprovalRecordAsync(request.Id, currentUser, currentUserName, "Revision Required", model.Comments);
+                    // Add approval record
+                    await AddApprovalRecordAsync(request.Id, currentUser, currentUserName, "Revision Required", model.Comments);
 
-                await _context.SaveChangesAsync();
+                    await _context.SaveChangesAsync();
+                }
 
                 // Send notification
                 await SendApprovalNotificationAsync(request, NotificationType.ReturnedForRevision, model.Comments);
@@ -296,28 +476,39 @@ namespace TradingLimitMVC.Controllers
 
             if (workflow != null)
             {
-                // Multi-approval workflow: Check if user has an active approval step
-                var userStep = workflow.ApprovalSteps
-                    .FirstOrDefault(s => s.ApproverEmail.Equals(userEmail, StringComparison.OrdinalIgnoreCase));
+                // Multi-approval workflow: Check if user has any active approval steps
+                // (User might have multiple steps assigned to them)
+                var userSteps = workflow.ApprovalSteps
+                    .Where(s => s.ApproverEmail.Equals(userEmail, StringComparison.OrdinalIgnoreCase))
+                    .ToList();
 
-                if (userStep == null)
+                if (!userSteps.Any())
                 {
                     return false; // User is not an approver in this workflow
                 }
 
-                // For sequential workflows, only active steps can be approved
-                if (workflow.WorkflowType == "Sequential")
+                // Check if any of the user's steps can be approved
+                foreach (var userStep in userSteps)
                 {
-                    return userStep.IsActive && (userStep.Status == "Pending" || userStep.Status == "InProgress");
+                    // For sequential workflows, only active steps can be approved
+                    if (workflow.WorkflowType == "Sequential")
+                    {
+                        if (userStep.IsActive && (userStep.Status == "Pending" || userStep.Status == "InProgress"))
+                        {
+                            return true;
+                        }
+                    }
+                    // For parallel workflows, any pending step can be approved
+                    else if (workflow.WorkflowType == "Parallel")
+                    {
+                        if (userStep.Status == "Pending" || userStep.Status == "InProgress")
+                        {
+                            return true;
+                        }
+                    }
                 }
                 
-                // For parallel workflows, any pending step can be approved
-                if (workflow.WorkflowType == "Parallel")
-                {
-                    return userStep.Status == "Pending" || userStep.Status == "InProgress";
-                }
-                
-                return false;
+                return false; // No approvable steps found for this user
             }
             else
             {
@@ -392,6 +583,60 @@ namespace TradingLimitMVC.Controllers
             }
 
             return Task.CompletedTask;
+        }
+
+        // GET: Approval/SelectStep/{id} - For users with multiple approvable steps
+        [HttpGet("SelectStep/{id}")]
+        public async Task<IActionResult> SelectStep(int id)
+        {
+            try
+            {
+                var request = await _context.TradingLimitRequests
+                    .Include(r => r.ApprovalWorkflow)
+                        .ThenInclude(w => w!.ApprovalSteps)
+                    .FirstOrDefaultAsync(r => r.Id == id);
+
+                if (request?.ApprovalWorkflow == null)
+                {
+                    TempData["ErrorMessage"] = "Request or workflow not found.";
+                    return RedirectToAction("Details", new { id });
+                }
+
+                var currentUser = await _generalService.GetCurrentUserEmailAsync();
+                
+                // Find all approvable steps for this user
+                var approvableSteps = request.ApprovalWorkflow.ApprovalSteps
+                    .Where(s => s.ApproverEmail.Equals(currentUser, StringComparison.OrdinalIgnoreCase))
+                    .Where(s => {
+                        if (request.ApprovalWorkflow.WorkflowType == "Sequential")
+                            return s.IsActive && (s.Status == "Pending" || s.Status == "InProgress");
+                        else // Parallel
+                            return s.Status == "Pending" || s.Status == "InProgress";
+                    })
+                    .OrderBy(s => s.StepNumber)
+                    .ToList();
+
+                if (approvableSteps.Count <= 1)
+                {
+                    // If only one step, redirect to normal details page
+                    return RedirectToAction("Details", new { id });
+                }
+
+                var viewModel = new SelectApprovalStepViewModel
+                {
+                    Request = request,
+                    ApprovableSteps = approvableSteps,
+                    CurrentUserEmail = currentUser
+                };
+
+                return View(viewModel);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error loading step selection for request {RequestId}", id);
+                TempData["ErrorMessage"] = "An error occurred while loading step selection.";
+                return RedirectToAction("Details", new { id });
+            }
         }
 
         // POST: Approval/ApprovalStep/{stepId}/Approve
@@ -498,6 +743,138 @@ namespace TradingLimitMVC.Controllers
             }
         }
 
+        // GET: Get user's pending approval steps for a specific request (AJAX)
+        [HttpGet("GetUserSteps/{id}")]
+        public async Task<IActionResult> GetUserSteps(int id)
+        {
+            try
+            {
+                var currentUser = await _generalService.GetCurrentUserEmailAsync();
+                
+                var request = await _context.TradingLimitRequests
+                    .Include(r => r.ApprovalWorkflow)
+                        .ThenInclude(w => w!.ApprovalSteps)
+                    .FirstOrDefaultAsync(r => r.Id == id);
+
+                if (request?.ApprovalWorkflow == null)
+                {
+                    return Json(new { success = false, message = "Request or workflow not found." });
+                }
+
+                var userSteps = request.ApprovalWorkflow.ApprovalSteps
+                    .Where(s => s.ApproverEmail.Equals(currentUser, StringComparison.OrdinalIgnoreCase))
+                    .Select(s => new {
+                        s.Id,
+                        s.StepNumber,
+                        s.ApproverRole,
+                        s.Status,
+                        s.IsActive,
+                        s.IsRequired,
+                        s.Comments,
+                        s.ActionDate,
+                        CanApprove = (request.ApprovalWorkflow.WorkflowType == "Sequential" ? s.IsActive : true) && 
+                                   (s.Status == "Pending" || s.Status == "InProgress")
+                    })
+                    .OrderBy(s => s.StepNumber)
+                    .ToList();
+
+                return Json(new { 
+                    success = true, 
+                    steps = userSteps,
+                    workflowType = request.ApprovalWorkflow.WorkflowType,
+                    canApproveAny = userSteps.Any(s => s.CanApprove)
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting user steps for request {RequestId}", id);
+                return Json(new { success = false, message = "An error occurred." });
+            }
+        }
+
+        // DEBUG: Test email comparison logic
+        [HttpGet("TestEmail")]
+        public async Task<IActionResult> TestEmail(string? testEmail = null)
+        {
+            var currentUser = await _generalService.GetCurrentUserEmailAsync();
+            testEmail = testEmail ?? currentUser;
+            
+            var comparisonResults = new
+            {
+                CurrentUser = currentUser,
+                TestEmail = testEmail,
+                AreEqual_CaseSensitive = currentUser == testEmail,
+                AreEqual_IgnoreCase = currentUser.Equals(testEmail, StringComparison.OrdinalIgnoreCase),
+                CurrentUser_Lower = currentUser.ToLower(),
+                TestEmail_Lower = testEmail?.ToLower(),
+                AreEqual_ToLower = currentUser.ToLower() == testEmail?.ToLower()
+            };
+            
+            return Json(comparisonResults);
+        }
+
+        // DEBUG: Temporary debug endpoint to check database state
+        [HttpGet("Debug")]
+        public async Task<IActionResult> Debug()
+        {
+            try
+            {
+                var currentUser = await _generalService.GetCurrentUserEmailAsync();
+                
+                var allRequests = await _context.TradingLimitRequests
+                    .Include(r => r.ApprovalWorkflow)
+                        .ThenInclude(w => w!.ApprovalSteps)
+                    .ToListAsync();
+                
+                var debugInfo = new
+                {
+                    CurrentUser = currentUser,
+                    TotalRequests = allRequests.Count,
+                    Requests = allRequests.Select(r => new
+                    {
+                        r.Id,
+                        r.RequestId,
+                        r.Status,
+                        r.ApprovalEmail,
+                        r.CreatedBy,
+                        r.SubmittedBy,
+                        HasWorkflow = r.ApprovalWorkflow != null,
+                        WorkflowStatus = r.ApprovalWorkflow?.Status,
+                        WorkflowType = r.ApprovalWorkflow?.WorkflowType,
+                        CurrentStep = r.ApprovalWorkflow?.CurrentStep,
+                        Steps = r.ApprovalWorkflow?.ApprovalSteps?.Select(s => new
+                        {
+                            s.Id,
+                            s.StepNumber,
+                            s.ApproverEmail,
+                            s.Status,
+                            s.IsActive,
+                            s.IsRequired,
+                            s.ActionDate,
+                            s.Comments,
+                            IsCurrentUserStep = s.ApproverEmail.Equals(currentUser, StringComparison.OrdinalIgnoreCase)
+                        }).ToList(),
+                        CurrentUserSteps = r.ApprovalWorkflow?.ApprovalSteps?
+                            .Where(s => s.ApproverEmail.Equals(currentUser, StringComparison.OrdinalIgnoreCase))
+                            .Select(s => new {
+                                s.Id,
+                                s.StepNumber,
+                                s.Status,
+                                s.IsActive,
+                                CanApprove = (r.ApprovalWorkflow.WorkflowType == "Sequential" ? s.IsActive : true) && 
+                                           (s.Status == "Pending" || s.Status == "InProgress")
+                            }).ToList()
+                    }).ToList()
+                };
+                
+                return Json(debugInfo);
+            }
+            catch (Exception ex)
+            {
+                return Json(new { error = ex.Message });
+            }
+        }
+
         #endregion
     }
 
@@ -522,6 +899,13 @@ namespace TradingLimitMVC.Controllers
     {
         public ApprovalStep Step { get; set; } = new();
         public bool CanApprove { get; set; }
+        public string CurrentUserEmail { get; set; } = string.Empty;
+    }
+
+    public class SelectApprovalStepViewModel
+    {
+        public TradingLimitRequest Request { get; set; } = new();
+        public List<ApprovalStep> ApprovableSteps { get; set; } = new();
         public string CurrentUserEmail { get; set; } = string.Empty;
     }
 }

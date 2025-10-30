@@ -87,28 +87,57 @@ namespace TradingLimitMVC.Services
         {
             try
             {
-                // Get requests where user has active approval steps
+                if (string.IsNullOrWhiteSpace(userEmail))
+                {
+                    _logger.LogWarning("GetPendingApprovalsForUserAsync called with null or empty userEmail");
+                    return new List<TradingLimitRequest>();
+                }
+
+                _logger.LogInformation("Getting pending approvals for user: {UserEmail} (normalized: {NormalizedEmail})", 
+                    userEmail, userEmail.ToLower());
+                
+                // Get requests where user has active approval steps (multi-approval workflow)
                 var requests = await _context.TradingLimitRequests
                     .Include(r => r.ApprovalWorkflow)
                         .ThenInclude(w => w!.ApprovalSteps)
                     .Include(r => r.Attachments)
                     .Where(r => r.ApprovalWorkflow != null &&
+                               // Only show requests that are not already completed
+                               (r.Status == "Submitted" || r.Status == "Pending" || r.Status == "InProgress") &&
+                               r.ApprovalWorkflow.Status != "Approved" && 
+                               r.ApprovalWorkflow.Status != "Rejected" &&
                                r.ApprovalWorkflow.ApprovalSteps.Any(s => 
-                                   s.ApproverEmail == userEmail && 
+                                   s.ApproverEmail != null && userEmail != null &&
+                                   s.ApproverEmail.ToLower() == userEmail.ToLower() && 
                                    (s.Status == "Pending" || s.Status == "InProgress")))
                     .OrderByDescending(r => r.SubmittedDate)
                     .ToListAsync();
+
+                _logger.LogInformation("Found {Count} multi-approval requests before IsActive filter", requests.Count);
+
+                // Filter by IsActive property after loading (since EF can't translate the computed property)
+                var filteredRequests = requests.Where(r =>
+                    r.ApprovalWorkflow!.ApprovalSteps.Any(s =>
+                        s.ApproverEmail.Equals(userEmail, StringComparison.OrdinalIgnoreCase) && s.IsActive)).ToList();
+
+                _logger.LogInformation("Found {Count} multi-approval requests after IsActive filter", filteredRequests.Count);
 
                 // Also include legacy single-approver requests
                 var legacyRequests = await _context.TradingLimitRequests
                     .Include(r => r.Attachments)
                     .Where(r => r.ApprovalWorkflow == null &&
-                               r.ApprovalEmail == userEmail &&
+                               r.ApprovalEmail != null && userEmail != null &&
+                               r.ApprovalEmail.ToLower() == userEmail.ToLower() &&
                                (r.Status == "Submitted" || r.Status == "Pending Approval"))
                     .OrderByDescending(r => r.SubmittedDate)
                     .ToListAsync();
 
-                return requests.Concat(legacyRequests).ToList();
+                _logger.LogInformation("Found {Count} legacy single-approval requests", legacyRequests.Count);
+
+                var totalRequests = filteredRequests.Concat(legacyRequests).ToList();
+                _logger.LogInformation("Total pending requests for user {UserEmail}: {Count}", userEmail, totalRequests.Count);
+
+                return totalRequests;
             }
             catch (Exception ex)
             {
@@ -127,7 +156,7 @@ namespace TradingLimitMVC.Services
                     .Include(s => s.ApprovalWorkflow.ApprovalSteps)
                     .FirstOrDefaultAsync(s => s.Id == stepId);
 
-                if (step == null || step.ApproverEmail != userEmail)
+                if (step == null || !step.ApproverEmail.Equals(userEmail, StringComparison.OrdinalIgnoreCase))
                 {
                     return false;
                 }
@@ -161,6 +190,13 @@ namespace TradingLimitMVC.Services
                     workflow.Status = "Rejected";
                     workflow.CompletedDate = DateTime.UtcNow;
                     workflow.TradingLimitRequest.Status = "Rejected";
+                }
+                else if (action == "Revision Required")
+                {
+                    // Revision required stops the workflow and returns to requester
+                    workflow.Status = "Revision Required";
+                    workflow.CompletedDate = DateTime.UtcNow;
+                    workflow.TradingLimitRequest.Status = "Revision Required";
                 }
 
                 workflow.UpdatedDate = DateTime.UtcNow;
@@ -204,7 +240,7 @@ namespace TradingLimitMVC.Services
             if (step == null) return false;
 
             // Check if user is assigned to this step
-            if (step.ApproverEmail != userEmail) return false;
+            if (!step.ApproverEmail.Equals(userEmail, StringComparison.OrdinalIgnoreCase)) return false;
 
             // Check if step is active
             if (step.Status != "Pending" && step.Status != "InProgress") return false;
@@ -245,7 +281,8 @@ namespace TradingLimitMVC.Services
             return await _context.ApprovalSteps
                 .Include(s => s.ApprovalWorkflow)
                     .ThenInclude(w => w.TradingLimitRequest)
-                .Where(s => s.ApproverEmail == userEmail && 
+                .Where(s => s.ApproverEmail != null && userEmail != null &&
+                           s.ApproverEmail.ToLower() == userEmail.ToLower() && 
                            (s.Status == "Pending" || s.Status == "InProgress"))
                 .OrderBy(s => s.AssignedDate)
                 .ToListAsync();

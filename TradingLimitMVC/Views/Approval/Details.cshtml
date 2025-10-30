@@ -4,6 +4,35 @@
     ViewData["Title"] = $"Approve Request - {Model.Request.RequestId}";
 }
 
+@functions {
+    string FormatTimeSpan(TimeSpan timeSpan)
+    {
+        var totalHours = (int)timeSpan.TotalHours;
+        var days = totalHours / 24;
+        var hours = totalHours % 24;
+        var minutes = timeSpan.Minutes;
+
+        if (days > 0)
+        {
+            if (hours > 0)
+                return $"{days}d {hours}h";
+            else
+                return $"{days}d";
+        }
+        else if (hours > 0)
+        {
+            if (minutes > 0)
+                return $"{hours}h {minutes}m";
+            else
+                return $"{hours}h";
+        }
+        else
+        {
+            return $"{minutes}m";
+        }
+    }
+}
+
 <div class="container-fluid">
     <div class="row">
         <!-- Main Content -->
@@ -218,12 +247,13 @@
                 <div class="card border-0 shadow-sm mb-4">
                     <div class="card-header bg-white border-bottom py-3">
                         <h5 class="card-title mb-0">
-                            <i class="fas fa-history me-2 text-secondary"></i>
-                            Request Timeline
+                            <i class="fas fa-route me-2 text-secondary"></i>
+                            Approval Timeline & Workflow Steps
                         </h5>
                     </div>
                     <div class="card-body p-4">
                         <div class="timeline">
+                            <!-- Request Submitted -->
                             <div class="timeline-item">
                                 <div class="timeline-marker bg-primary"></div>
                                 <div class="timeline-content">
@@ -236,8 +266,268 @@
                                     </small>
                                 </div>
                             </div>
-                            
-                            @* Note: ApprovalNotifications will be added when the relationship is established *@
+
+                            @if (Model.Request.ApprovalWorkflow != null && Model.Request.ApprovalWorkflow.ApprovalSteps.Any())
+                            {
+                                <!-- Multi-step Approval Workflow -->
+                                @foreach (var step in Model.Request.ApprovalWorkflow.ApprovalSteps.OrderBy(s => s.StepNumber))
+                                {
+                                var stepStatus = step.Status;
+                                var markerClass = stepStatus switch {
+                                    "Approved" => "bg-success",
+                                    "Rejected" => "bg-danger",
+                                    "Revision Required" => "bg-warning",
+                                    "InProgress" => "bg-primary",
+                                    "Pending" => "bg-secondary",
+                                    _ => "bg-light"
+                                };
+                                var statusIcon = stepStatus switch {
+                                    "Approved" => "fa-check",
+                                    "Rejected" => "fa-times",
+                                    "Revision Required" => "fa-edit",
+                                    "InProgress" => "fa-spinner",
+                                    "Pending" => "fa-clock",
+                                    _ => "fa-question"
+                                };                                    <div class="timeline-item @(stepStatus == "InProgress" ? "timeline-pending" : "")">
+                                        <div class="timeline-marker @markerClass">
+                                            <i class="fas @statusIcon @(stepStatus == "InProgress" ? "fa-spin" : "") text-white" style="font-size: 0.7rem;"></i>
+                                        </div>
+                                        <div class="timeline-content">
+                                            <div class="d-flex justify-content-between align-items-start">
+                                                <div class="flex-grow-1">
+                                                    <h6 class="timeline-title">
+                                                        Step @step.StepNumber: @step.ApproverName
+                                                        @if (!string.IsNullOrEmpty(step.ApproverRole))
+                                                        {
+                                                            <small class="text-muted">(@step.ApproverRole)</small>
+                                                        }
+                                                    </h6>
+                                                    <p class="timeline-text text-muted mb-1">
+                                                        @step.ApproverEmail
+                                                    </p>
+                                                </div>
+                                            <span class="badge bg-@(stepStatus == "Approved" ? "success" : stepStatus == "Rejected" ? "danger" : stepStatus == "Revision Required" ? "warning" : stepStatus == "InProgress" ? "primary" : "secondary") bg-opacity-10 text-@(stepStatus == "Approved" ? "success" : stepStatus == "Rejected" ? "danger" : stepStatus == "Revision Required" ? "warning" : stepStatus == "InProgress" ? "primary" : "secondary") ms-2">
+                                                @stepStatus
+                                            </span>
+                                            </div>
+                                            @if (!string.IsNullOrEmpty(step.Comments))
+                                            {
+                                                <div class="mt-2 p-2 bg-light rounded">
+                                                    <small class="text-muted">
+                                                        <i class="fas fa-comment me-1"></i>
+                                                        @step.Comments
+                                                    </small>
+                                                </div>
+                                            }
+                                            <!-- Time Information -->
+                                            <div class="timeline-dates mt-2">
+                                                @if (step.ActionDate.HasValue)
+                                                {
+                                                    <div class="d-flex align-items-center mb-1">
+                                                        <i class="fas fa-check-circle me-2 text-success" style="font-size: 0.8rem;"></i>
+                                                        <small class="text-muted">
+                                                            <strong>Completed:</strong> @step.ActionDate?.ToString("MMM dd, yyyy 'at' hh:mm tt")
+                                                        </small>
+                                                    </div>
+                                                    @if (step.AssignedDate != default && step.ActionDate.HasValue)
+                                                    {
+                                                        var processingTime = step.ActionDate.Value - step.AssignedDate;
+                                                        <div class="d-flex align-items-center mb-1">
+                                                            <i class="fas fa-stopwatch me-2 text-primary" style="font-size: 0.8rem;"></i>
+                                                            <small class="text-muted">
+                                                                <strong>Processing Time:</strong> @FormatTimeSpan(processingTime)
+                                                            </small>
+                                                        </div>
+                                                    }
+                                                }
+                                                else if (stepStatus == "InProgress")
+                                                {
+                                                    <div class="d-flex align-items-center mb-1">
+                                                        <i class="fas fa-spinner fa-spin me-2 text-primary" style="font-size: 0.8rem;"></i>
+                                                        <small class="text-muted">
+                                                            <strong>Status:</strong> In progress - actively reviewing
+                                                        </small>
+                                                    </div>
+                                                }
+                                                else if (stepStatus == "Pending")
+                                                {
+                                                    <div class="d-flex align-items-center mb-1">
+                                                        <i class="fas fa-clock me-2 text-secondary" style="font-size: 0.8rem;"></i>
+                                                        <small class="text-muted">
+                                                            <strong>Status:</strong> Waiting in queue
+                                                        </small>
+                                                    </div>
+                                                    @if (step.DueDate.HasValue)
+                                                    {
+                                                        var timeUntilDue = step.DueDate - DateTime.UtcNow;
+                                                        var isOverdue = timeUntilDue < TimeSpan.Zero;
+                                                        <div class="d-flex align-items-center mb-1">
+                                                            <i class="fas fa-calendar-alt me-2 @(isOverdue ? "text-danger" : "text-info")" style="font-size: 0.8rem;"></i>
+                                                            <small class="text-muted">
+                                                                <strong>Due:</strong> @step.DueDate?.ToString("MMM dd, yyyy 'at' hh:mm tt")
+                                                                @if (isOverdue)
+                                                                {
+                                                                    <span class="badge bg-danger bg-opacity-10 text-danger ms-1" style="font-size: 0.7rem;">Overdue</span>
+                                                                }
+                                                            </small>
+                                                        </div>
+                                                    }
+                                                    @if (step.AssignedDate != default)
+                                                    {
+                                                        var waitingTime = DateTime.UtcNow - step.AssignedDate;
+                                                        <div class="d-flex align-items-center mb-1">
+                                                            <i class="fas fa-hourglass-half me-2 text-secondary" style="font-size: 0.8rem;"></i>
+                                                            <small class="text-muted">
+                                                                <strong>Waiting for:</strong> @FormatTimeSpan(waitingTime)
+                                                            </small>
+                                                        </div>
+                                                    }
+                                                }
+                                                
+                                                @if (step.AssignedDate != default)
+                                                {
+                                                    <div class="d-flex align-items-center">
+                                                        <i class="fas fa-paper-plane me-2 text-info" style="font-size: 0.8rem;"></i>
+                                                        <small class="text-muted">
+                                                            <strong>Assigned:</strong> @step.AssignedDate.ToString("MMM dd, yyyy 'at' hh:mm tt")
+                                                        </small>
+                                                    </div>
+                                                }
+                                            </div>
+                                        </div>
+                                    </div>
+                                }
+                            }
+                            else if (!string.IsNullOrEmpty(Model.Request.ApprovalEmail))
+                            {
+                                <!-- Single Approver System -->
+                                var singleApprovalStatus = Model.Request.Status;
+                                var singleMarkerClass = singleApprovalStatus switch {
+                                    "Approved" => "bg-success",
+                                    "Rejected" => "bg-danger",
+                                    "Revision Required" => "bg-warning",
+                                    "Submitted" => "bg-secondary",
+                                    _ => "bg-light"
+                                };
+                                var singleStatusIcon = singleApprovalStatus switch {
+                                    "Approved" => "fa-check",
+                                    "Rejected" => "fa-times",
+                                    "Revision Required" => "fa-edit",
+                                    "Submitted" => "fa-clock",
+                                    _ => "fa-question"
+                                };
+
+                                <div class="timeline-item @(singleApprovalStatus == "Submitted" ? "timeline-pending" : "")">
+                                    <div class="timeline-marker @singleMarkerClass">
+                                        <i class="fas @singleStatusIcon text-white" style="font-size: 0.7rem;"></i>
+                                    </div>
+                                    <div class="timeline-content">
+                                        <div class="d-flex justify-content-between align-items-start">
+                                            <div class="flex-grow-1">
+                                                <h6 class="timeline-title">Approval Required</h6>
+                                                <p class="timeline-text text-muted mb-1">
+                                                    Assigned to: @Model.Request.ApprovalEmail
+                                                </p>
+                                            </div>
+                                            <span class="badge bg-@(singleApprovalStatus == "Approved" ? "success" : singleApprovalStatus == "Rejected" ? "danger" : singleApprovalStatus == "Revision Required" ? "warning" : "secondary") bg-opacity-10 text-@(singleApprovalStatus == "Approved" ? "success" : singleApprovalStatus == "Rejected" ? "danger" : singleApprovalStatus == "Revision Required" ? "warning" : "secondary") ms-2">
+                                                @(singleApprovalStatus == "Submitted" ? "Pending" : singleApprovalStatus)
+                                            </span>
+                                        </div>
+                                        @if (singleApprovalStatus == "Submitted")
+                                        {
+                                            <div class="timeline-dates mt-2">
+                                                <div class="d-flex align-items-center mb-1">
+                                                    <i class="fas fa-clock me-2 text-warning" style="font-size: 0.8rem;"></i>
+                                                    <small class="text-muted">
+                                                        <strong>Status:</strong> Awaiting approval
+                                                    </small>
+                                                </div>
+                                                @if (Model.Request.SubmittedDate.HasValue)
+                                                {
+                                                    var waitingTime = DateTime.UtcNow - Model.Request.SubmittedDate.Value;
+                                                    <div class="d-flex align-items-center">
+                                                        <i class="fas fa-hourglass-half me-2 text-secondary" style="font-size: 0.8rem;"></i>
+                                                        <small class="text-muted">
+                                                            <strong>Waiting for:</strong> @FormatTimeSpan(waitingTime)
+                                                        </small>
+                                                    </div>
+                                                }
+                                            </div>
+                                        }
+                                    </div>
+                                </div>
+                            }
+
+                            <!-- Approval History from Notifications -->
+                            @if (Model.ApprovalHistory.Any())
+                            {
+                                @foreach (var notification in Model.ApprovalHistory)
+                                {
+                                    var notificationMarkerClass = notification.Type switch {
+                                        TradingLimitMVC.Models.NotificationType.Approved => "bg-success",
+                                        TradingLimitMVC.Models.NotificationType.FinalApproval => "bg-success",
+                                        TradingLimitMVC.Models.NotificationType.Rejected => "bg-danger",
+                                        TradingLimitMVC.Models.NotificationType.ReturnedForRevision => "bg-warning",
+                                        TradingLimitMVC.Models.NotificationType.Escalated => "bg-info",
+                                        _ => "bg-primary"
+                                    };
+                                    var notificationIcon = notification.Type switch {
+                                        TradingLimitMVC.Models.NotificationType.Approved => "fa-check",
+                                        TradingLimitMVC.Models.NotificationType.FinalApproval => "fa-check-double",
+                                        TradingLimitMVC.Models.NotificationType.Rejected => "fa-times",
+                                        TradingLimitMVC.Models.NotificationType.ReturnedForRevision => "fa-edit",
+                                        TradingLimitMVC.Models.NotificationType.Escalated => "fa-arrow-up",
+                                        _ => "fa-bell"
+                                    };
+
+                                    <div class="timeline-item timeline-notification">
+                                        <div class="timeline-marker @notificationMarkerClass">
+                                            <i class="fas @notificationIcon text-white" style="font-size: 0.7rem;"></i>
+                                        </div>
+                                        <div class="timeline-content">
+                                            <h6 class="timeline-title">@notification.Type.ToString().Replace("ReturnedForRevision", "Returned for Revision")</h6>
+                                            <p class="timeline-text text-muted mb-1">
+                                                @notification.RecipientName (@notification.RecipientEmail)
+                                            </p>
+                                            @if (!string.IsNullOrEmpty(notification.Message))
+                                            {
+                                                <div class="mt-2 p-2 bg-light rounded">
+                                                    <small class="text-muted">
+                                                        <i class="fas fa-comment me-1"></i>
+                                                        @notification.Message
+                                                    </small>
+                                                </div>
+                                            }
+                                            <div class="timeline-dates mt-2">
+                                                <div class="d-flex align-items-center">
+                                                    <i class="fas fa-bell me-2 text-primary" style="font-size: 0.8rem;"></i>
+                                                    <small class="text-muted">
+                                                        <strong>Notification Sent:</strong> @notification.SentDate.ToString("MMM dd, yyyy 'at' hh:mm tt")
+                                                    </small>
+                                                </div>
+                                                @if (notification.ReadDate.HasValue)
+                                                {
+                                                    <div class="d-flex align-items-center mt-1">
+                                                        <i class="fas fa-eye me-2 text-success" style="font-size: 0.8rem;"></i>
+                                                        <small class="text-muted">
+                                                            <strong>Read:</strong> @notification.ReadDate?.ToString("MMM dd, yyyy 'at' hh:mm tt")
+                                                        </small>
+                                                    </div>
+                                                }
+                                                else if (notification.Type == TradingLimitMVC.Models.NotificationType.ApprovalRequired)
+                                                {
+                                                    <div class="d-flex align-items-center mt-1">
+                                                        <i class="fas fa-envelope me-2 text-warning" style="font-size: 0.8rem;"></i>
+                                                        <small class="text-muted">
+                                                            <strong>Status:</strong> Unread
+                                                        </small>
+                                                    </div>
+                                                }
+                                            </div>
+                                        </div>
+                                    </div>
+                                }
+                            }
                         </div>
                     </div>
                 </div>
@@ -370,53 +660,162 @@
 
         .timeline {
             position: relative;
-            padding-left: 30px;
+            padding-left: 35px;
         }
 
         .timeline::before {
             content: '';
             position: absolute;
-            left: 15px;
+            left: 17px;
             top: 0;
             bottom: 0;
             width: 2px;
-            background: #e9ecef;
+            background: linear-gradient(to bottom, #007bff, #e9ecef);
         }
 
         .timeline-item {
             position: relative;
-            margin-bottom: 30px;
+            margin-bottom: 35px;
+            padding: 10px 0;
         }
 
         .timeline-item:last-child {
             margin-bottom: 0;
         }
 
+        .timeline-item.timeline-pending {
+            animation: pulse 2s infinite;
+        }
+
+        .timeline-item.timeline-pending .timeline-content {
+            animation: glow 2s infinite alternate;
+        }
+
+        .timeline-item.timeline-notification {
+            opacity: 0.9;
+        }
+
         .timeline-marker {
             position: absolute;
-            left: -22px;
+            left: -26px;
             top: 0;
-            width: 14px;
-            height: 14px;
+            width: 18px;
+            height: 18px;
             border-radius: 50%;
             border: 3px solid #fff;
-            box-shadow: 0 0 0 2px #e9ecef;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 2;
+        }
+
+        .timeline-marker.bg-primary {
+            animation: pulse-ring 2s infinite;
         }
 
         .timeline-content {
-            padding-left: 15px;
+            padding-left: 20px;
+            background: #fff;
+            border-radius: 8px;
+            padding: 15px 20px;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.05);
+            border: 1px solid #f0f0f0;
+            min-height: 60px;
+        }
+
+        .timeline-pending .timeline-content {
+            border-left: 4px solid #007bff;
+            background: linear-gradient(135deg, #e3f2fd, #fff);
+            position: relative;
+        }
+
+        .timeline-pending .timeline-content::before {
+            content: '';
+            position: absolute;
+            top: -2px;
+            left: -6px;
+            right: -2px;
+            bottom: -2px;
+            background: linear-gradient(45deg, #007bff, #0056b3);
+            border-radius: 10px;
+            z-index: -1;
+            animation: border-pulse 2s infinite;
         }
 
         .timeline-title {
-            font-size: 0.875rem;
+            font-size: 0.9rem;
             font-weight: 600;
-            margin-bottom: 5px;
+            margin-bottom: 8px;
             color: #333;
         }
 
         .timeline-text {
-            font-size: 0.875rem;
-            line-height: 1.4;
+            font-size: 0.85rem;
+            line-height: 1.5;
+            margin-bottom: 8px;
+        }
+
+        .timeline-dates {
+            background: #f8f9fa;
+            border-radius: 6px;
+            padding: 8px 12px;
+            border-left: 3px solid #e9ecef;
+        }
+
+        .timeline-dates small {
+            font-size: 0.75rem;
+        }
+
+        @@keyframes pulse {
+            0% {
+                transform: scale(1);
+            }
+            50% {
+                transform: scale(1.02);
+            }
+            100% {
+                transform: scale(1);
+            }
+        }
+
+        @@keyframes glow {
+            0% {
+                box-shadow: 0 1px 4px rgba(0,0,0,0.05), 0 0 0 0 rgba(0, 123, 255, 0.3);
+            }
+            100% {
+                box-shadow: 0 1px 4px rgba(0,0,0,0.05), 0 0 15px rgba(0, 123, 255, 0.6);
+            }
+        }
+
+        @@keyframes border-pulse {
+            0% {
+                opacity: 0.5;
+                transform: scale(1);
+            }
+            50% {
+                opacity: 1;
+                transform: scale(1.005);
+            }
+            100% {
+                opacity: 0.5;
+                transform: scale(1);
+            }
+        }
+
+        @@keyframes pulse-ring {
+            0% {
+                transform: scale(1);
+                box-shadow: 0 2px 8px rgba(0,0,0,0.15), 0 0 0 0 rgba(0, 123, 255, 0.7);
+            }
+            70% {
+                transform: scale(1);
+                box-shadow: 0 2px 8px rgba(0,0,0,0.15), 0 0 0 10px rgba(0, 123, 255, 0);
+            }
+            100% {
+                transform: scale(1);
+                box-shadow: 0 2px 8px rgba(0,0,0,0.15), 0 0 0 0 rgba(0, 123, 255, 0);
+            }
         }
 
         .risk-factors {

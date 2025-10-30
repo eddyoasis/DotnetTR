@@ -52,7 +52,13 @@ namespace TradingLimitMVC.Controllers
         {
             try
             {
-                var request = await _tradingLimitRequestService.GetByIdAsync(id);
+                // Get request with full approval workflow data
+                var request = await _context.TradingLimitRequests
+                    .Include(t => t.Attachments)
+                    .Include(t => t.ApprovalWorkflow)
+                        .ThenInclude(w => w!.ApprovalSteps)
+                    .FirstOrDefaultAsync(t => t.Id == id);
+
                 if (request == null)
                 {
                     return NotFound();
@@ -345,6 +351,13 @@ namespace TradingLimitMVC.Controllers
             {
                 if (!ModelState.IsValid)
                 {
+                    // Log the validation errors for debugging
+                    foreach (var error in ModelState.Where(x => x.Value?.Errors.Count > 0))
+                    {
+                        _logger.LogWarning("Model validation error for {Key}: {Errors}", 
+                            error.Key, string.Join(", ", error.Value?.Errors.Select(e => e.ErrorMessage) ?? Array.Empty<string>()));
+                    }
+
                     // Reload request and return to view
                     model.Request = await _tradingLimitRequestService.GetByIdAsync(model.Id);
                     return View("SubmitMultiApproval", model);
