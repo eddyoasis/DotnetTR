@@ -5,6 +5,9 @@ using TradingLimitMVC.Data;
 using TradingLimitMVC.Models;
 using TradingLimitMVC.Services;
 using System.Security.Claims;
+using TradingLimitMVC.Models.AppSettings;
+using Azure.Core;
+using Microsoft.Extensions.Options;
 
 namespace TradingLimitMVC.Controllers
 {
@@ -17,15 +20,21 @@ namespace TradingLimitMVC.Controllers
         private readonly IApprovalWorkflowService _approvalWorkflowService;
         private readonly ILogger<ApprovalController> _logger;
         private readonly IGeneralService _generalService;
+        private readonly IEmailService _emailService;
+        private readonly IOptionsSnapshot<GeneralAppSetting> _generalAppSetting;
 
         public ApprovalController(
             ApplicationDbContext context,
+            IEmailService emailService,
+            IOptionsSnapshot<GeneralAppSetting> generalAppSetting,
             ITradingLimitRequestService tradingLimitRequestService,
             IApprovalWorkflowService approvalWorkflowService,
             ILogger<ApprovalController> logger,
             IGeneralService generalService)
         {
             _context = context;
+            _emailService = emailService;
+            _generalAppSetting = generalAppSetting;
             _tradingLimitRequestService = tradingLimitRequestService;
             _approvalWorkflowService = approvalWorkflowService;
             _logger = logger;
@@ -596,17 +605,29 @@ namespace TradingLimitMVC.Controllers
                     }
 
                     // Check and skip future steps from same groups that already approved
-                    await CheckAndSkipSameGroupNextStepsAsync(workflow, currentStepNumber);
+                    CheckAndSkipSameGroupNextSteps(workflow, currentStepNumber);
                     
                     // Activate next appropriate step (this will now handle skipped steps properly)
                     await ActivateNextStepAsync(workflow, currentStepNumber);
                     
-                    await _context.SaveChangesAsync();
-                    
+                    await _context.SaveChangesAsync();                
+
                     // Verify workflow advancement
-                    var nextActiveStep = await FindNextActiveStepNumberAsync(workflow, currentStepNumber);
+                    var nextActiveStep = FindNextActiveStepNumber(workflow, currentStepNumber);
                     if (nextActiveStep.HasValue)
                     {
+                        //Send Email
+                        var tradingLimitRequest = await _context.TradingLimitRequests.FirstOrDefaultAsync(x => x.Id == requestId);
+                        var approvalStep = workflow.ApprovalSteps.FirstOrDefault(x => x.StepNumber == nextActiveStep);
+                        
+                        if (tradingLimitRequest != null && approvalStep != null)
+                        {
+                            var approverEmail = approvalStep.ApproverEmail;
+                            var observerEmails = await _context.GroupSettings.Where(x => x.GroupID == approvalStep.ApprovalGroupId && x.TypeID == 3).Select(x => x.Email).ToListAsync();
+
+                            await SendEmail(tradingLimitRequest, approverEmail, observerEmails);
+                        }
+
                         _logger.LogInformation("Successfully advanced workflow for request {RequestId} from step {CurrentStep} to step {NextStep}", 
                             requestId, currentStepNumber, nextActiveStep.Value);
                     }
@@ -630,7 +651,7 @@ namespace TradingLimitMVC.Controllers
         }
 
         // Check and skip next steps if they belong to the same group and role that already approved
-        private async Task CheckAndSkipSameGroupNextStepsAsync(ApprovalWorkflow workflow, int currentStepNumber)
+        private void CheckAndSkipSameGroupNextSteps(ApprovalWorkflow workflow, int currentStepNumber)
         {
             try
             {
@@ -827,7 +848,7 @@ namespace TradingLimitMVC.Controllers
         {
             try
             {
-                var nextActiveStepNumber = await FindNextActiveStepNumberAsync(workflow, currentStepNumber);
+                var nextActiveStepNumber = FindNextActiveStepNumber(workflow, currentStepNumber);
                 
                 if (nextActiveStepNumber.HasValue)
                 {
@@ -877,7 +898,7 @@ namespace TradingLimitMVC.Controllers
         }
 
         // Find the next step number that has non-skipped steps
-        private async Task<int?> FindNextActiveStepNumberAsync(ApprovalWorkflow workflow, int currentStepNumber)
+        private int? FindNextActiveStepNumber(ApprovalWorkflow workflow, int currentStepNumber)
         {
             try
             {
@@ -1434,7 +1455,7 @@ namespace TradingLimitMVC.Controllers
                     validationResults.Add($"Issue: No active steps found in current step {workflow.CurrentStep}");
                     
                     // Try to find next valid step
-                    var nextActiveStep = await FindNextActiveStepNumberAsync(workflow, workflow.CurrentStep - 1);
+                    var nextActiveStep = FindNextActiveStepNumber(workflow, workflow.CurrentStep - 1);
                     if (nextActiveStep.HasValue)
                     {
                         validationResults.Add($"Suggested fix: Advance to step {nextActiveStep.Value}");
@@ -1491,6 +1512,25 @@ namespace TradingLimitMVC.Controllers
                 _logger.LogError(ex, "Error validating workflow state for request {RequestId}", requestId);
                 return Json(new { success = false, message = "Error validating workflow: " + ex.Message });
             }
+        }
+
+        private async Task SendEmail(TradingLimitRequest req, string approverEmail, List<string> EmailCCs)
+        {
+            var generalAppSetting = _generalAppSetting.Value;
+            var domainHost = generalAppSetting.Host;
+
+            var recipientsTo = new List<string> { approverEmail };
+            var recipientsCC = EmailCCs;
+            var subject = $"TEST [PENDING SG IT] PR: {req.RequestId}";
+            var body = $@"
+                <p>Please refer to the purchase requisition below for your approval.<br/>
+                Awaiting your action.</p>
+                <p>
+                    <strong>Requested by:</strong> {req.GLProposedLimit}<br/>
+                </p>";
+
+
+            await _emailService.SendEmailAsync(recipientsTo, recipientsCC, subject, body);
         }
 
         #endregion

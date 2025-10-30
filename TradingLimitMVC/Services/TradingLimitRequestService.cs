@@ -230,6 +230,13 @@ namespace TradingLimitMVC.Services
 
                 await _context.SaveChangesAsync();
 
+                //Send Email
+                var approvalStep = workflow.ApprovalSteps.FirstOrDefault();
+                var approverEmail = approvalStep.ApproverEmail;
+                var observerEmails = await _context.GroupSettings.Where(x => x.GroupID == approvalStep.ApprovalGroupId && x.TypeID == 3).Select(x=>x.Email).ToListAsync();
+
+                await SendEmail(request, approverEmail, observerEmails);
+
                 _logger.LogInformation("Trading limit request with ID {Id} submitted with multi-approval workflow by {SubmittedBy}", id, submittedBy);
                 return true;
             }
@@ -337,6 +344,25 @@ namespace TradingLimitMVC.Services
                 _logger.LogError(ex, "Error retrieving attachment with ID {AttachmentId}", attachmentId);
                 throw;
             }
+        }
+
+        private async Task SendEmail(TradingLimitRequest req, string approverEmail, List<string> EmailCCs)
+        {
+            var generalAppSetting = _generalAppSetting.Value;
+            var domainHost = generalAppSetting.Host;
+
+            var recipientsTo = new List<string> { approverEmail };
+            var recipientsCC = EmailCCs;
+            var subject = $"TEST [PENDING SG IT] PR: {req.RequestId}";
+            var body = $@"
+                <p>Please refer to the purchase requisition below for your approval.<br/>
+                Awaiting your action.</p>
+                <p>
+                    <strong>Requested by:</strong> {req.GLProposedLimit}<br/>
+                </p>";
+
+
+            await _emailService.SendEmailAsync(recipientsTo, recipientsCC, subject, body);
         }
 
         //private async Task SendEmail(TradingLimitRequest req, string approverEmail)
