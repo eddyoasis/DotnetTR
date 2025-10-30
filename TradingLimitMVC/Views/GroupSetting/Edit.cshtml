@@ -1,0 +1,226 @@
+@model TradingLimitMVC.Models.GroupSetting
+@{
+    ViewData["Title"] = "Edit Group Setting";
+}
+
+<style>
+    .page-wrapper {
+        background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+        min-height: 100vh;
+        padding: 20px 0;
+    }
+
+    .main-container {
+        background: linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%);
+        border: none;
+        margin: 20px auto;
+        padding: 0;
+        border-radius: 15px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        overflow: hidden;
+        max-width: 800px;
+    }
+
+    .header-section {
+        background: linear-gradient(135deg, #ffc107, #e0a800);
+        border-bottom: none;
+        padding: 20px 25px;
+        color: white;
+    }
+
+    .header-title {
+        font-size: 24px;
+        font-weight: 700;
+        margin: 0;
+        text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    }
+
+    .content-section {
+        padding: 30px;
+    }
+
+    .form-section {
+        background: white;
+        border-radius: 10px;
+        padding: 25px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+    }
+
+    .audit-info {
+        background: #f8f9fa;
+        border: 1px solid #dee2e6;
+        border-radius: 8px;
+        padding: 15px;
+        margin-bottom: 20px;
+    }
+
+    .form-label {
+        font-weight: 600;
+        color: #495057;
+        margin-bottom: 8px;
+    }
+
+    .form-control, .form-select {
+        border-radius: 8px;
+        border: 2px solid #e9ecef;
+        padding: 12px 15px;
+        transition: all 0.3s ease;
+    }
+
+    .form-control:focus, .form-select:focus {
+        border-color: #ffc107;
+        box-shadow: 0 0 0 0.2rem rgba(255, 193, 7, 0.25);
+    }
+
+    .btn-group-custom {
+        display: flex;
+        gap: 10px;
+        justify-content: center;
+        margin-top: 25px;
+        padding-top: 20px;
+        border-top: 1px solid #e9ecef;
+    }
+
+    .btn {
+        padding: 12px 24px;
+        font-weight: 600;
+        border-radius: 8px;
+        transition: all 0.3s ease;
+    }
+
+    .btn:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    }
+</style>
+
+<div class="page-wrapper">
+    <div class="main-container">
+        <div class="header-section">
+            <h1 class="header-title">
+                <i class="fas fa-edit me-2"></i>
+                Edit Group Setting
+            </h1>
+        </div>
+
+        <div class="content-section">
+            @if (TempData["ErrorMessage"] != null)
+            {
+                <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    @TempData["ErrorMessage"]
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+            }
+
+            <div class="form-section">
+                <!-- Audit Information -->
+                <div class="audit-info">
+                    <h6 class="mb-3">
+                        <i class="fas fa-info-circle me-2"></i>
+                        Record Information
+                    </h6>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <strong>Created:</strong> @Model.CreatedDate.ToString("MMM dd, yyyy HH:mm") by @Model.CreatedBy
+                        </div>
+                        @if (Model.ModifiedDate.HasValue)
+                        {
+                            <div class="col-md-6">
+                                <strong>Last Modified:</strong> @Model.ModifiedDate.Value.ToString("MMM dd, yyyy HH:mm") by @Model.ModifiedBy
+                            </div>
+                        }
+                    </div>
+                </div>
+
+                <form asp-action="Edit">
+                    <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+                    
+                    <input type="hidden" asp-for="Id" />
+                    <input type="hidden" asp-for="CreatedDate" />
+                    <input type="hidden" asp-for="CreatedBy" />
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label asp-for="Username" class="form-label"></label>
+                            <input asp-for="Username" class="form-control" placeholder="Enter username" required />
+                            <span asp-validation-for="Username" class="text-danger"></span>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label asp-for="Email" class="form-label"></label>
+                            <input asp-for="Email" type="email" class="form-control" placeholder="Enter email address" required />
+                            <span asp-validation-for="Email" class="text-danger"></span>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label asp-for="GroupID" class="form-label">Group</label>
+                            <select asp-for="GroupID" class="form-select" required>
+                                <option value="">Select Group</option>
+                                <option value="1" selected="@(Model.GroupID == 1)">IWM</option>
+                                <option value="2" selected="@(Model.GroupID == 2)">GSPS</option>
+                                <option value="3" selected="@(Model.GroupID == 3)">Risk</option>
+                            </select>
+                            <span asp-validation-for="GroupID" class="text-danger"></span>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label asp-for="TypeID" class="form-label">Type</label>
+                            <select asp-for="TypeID" class="form-select" required>
+                                <option value="">Select Type</option>
+                                <option value="1" selected="@(Model.TypeID == 1)">Approver</option>
+                                <option value="2" selected="@(Model.TypeID == 2)">Endorser</option>
+                                <option value="3" selected="@(Model.TypeID == 3)">Observer</option>
+                            </select>
+                            <span asp-validation-for="TypeID" class="text-danger"></span>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="Email" class="form-label"></label>
+                        <input asp-for="Email" type="email" class="form-control" placeholder="Enter email address" required />
+                        <span asp-validation-for="Email" class="text-danger"></span>
+                        <div class="form-text">
+                            <i class="fas fa-envelope me-1"></i>
+                            This email will be used for notifications and communications
+                        </div>
+                    </div>
+
+                    <div class="btn-group-custom">
+                        <button type="submit" class="btn btn-warning">
+                            <i class="fas fa-save me-2"></i>
+                            Update Setting
+                        </button>
+                        <a asp-action="Details" asp-route-id="@Model.Id" class="btn btn-info">
+                            <i class="fas fa-eye me-2"></i>
+                            View Details
+                        </a>
+                        <a asp-action="Index" class="btn btn-secondary">
+                            <i class="fas fa-arrow-left me-2"></i>
+                            Back to List
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+    
+    <script>
+        // Real-time validation feedback
+        $('.form-control, .form-select').on('blur', function() {
+            $(this).removeClass('is-invalid is-valid');
+            
+            if ($(this).is(':invalid') || $(this).val() === '') {
+                if ($(this).attr('required')) {
+                    $(this).addClass('is-invalid');
+                }
+            } else {
+                $(this).addClass('is-valid');
+            }
+        });
+    </script>
+}

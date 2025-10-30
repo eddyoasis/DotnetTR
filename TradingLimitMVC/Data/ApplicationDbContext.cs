@@ -19,6 +19,7 @@ namespace TradingLimitMVC.Data
         public DbSet<ApprovalNotification> ApprovalNotifications { get; set; }
         public DbSet<ApprovalWorkflow> ApprovalWorkflows { get; set; }
         public DbSet<ApprovalStep> ApprovalSteps { get; set; }
+        public DbSet<GroupSetting> GroupSettings { get; set; }
 
 
 
@@ -212,6 +213,31 @@ namespace TradingLimitMVC.Data
                 entity.HasIndex(e => e.Status);
                 entity.HasIndex(e => e.StepNumber);
                 entity.HasIndex(e => new { e.ApprovalWorkflowId, e.StepNumber }).IsUnique();
+            });
+
+            modelBuilder.Entity<GroupSetting>(entity =>
+            {
+                entity.ToTable("Temp_TL_GroupSettings");
+                entity.HasKey(e => e.Id);
+                
+                // Required fields
+                entity.Property(e => e.GroupID).IsRequired();
+                entity.Property(e => e.TypeID).IsRequired();
+                entity.Property(e => e.Username).IsRequired().HasMaxLength(100);
+                entity.Property(e => e.Email).IsRequired().HasMaxLength(200);
+                
+                // Optional audit fields
+                entity.Property(e => e.CreatedBy).HasMaxLength(100);
+                entity.Property(e => e.ModifiedBy).HasMaxLength(100);
+                entity.Property(e => e.CreatedDate).HasDefaultValueSql("GETDATE()");
+                
+                // Create indexes for performance and data integrity
+                entity.HasIndex(e => e.GroupID).HasDatabaseName("IX_GroupSettings_GroupID");
+                entity.HasIndex(e => e.TypeID).HasDatabaseName("IX_GroupSettings_TypeID");
+                entity.HasIndex(e => e.Email).HasDatabaseName("IX_GroupSettings_Email");
+                entity.HasIndex(e => new { e.GroupID, e.TypeID, e.Email })
+                      .IsUnique()
+                      .HasDatabaseName("IX_GroupSettings_Unique_Group_Type_Email");
             });
         }
     }
