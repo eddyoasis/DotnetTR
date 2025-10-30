@@ -583,24 +583,43 @@ namespace TradingLimitMVC.Controllers
 
                 if (stepComplete)
                 {
-                    // Mark all pending steps in current step as skipped (since group requirement is met)
-                    foreach (var step in currentStepApprovals.Where(s => s.Status == "Pending" || s.Status == "InProgress"))
+                    // Mark all remaining pending steps in current step as skipped (since group requirement is met)
+                    var remainingSteps = currentStepApprovals.Where(s => s.Status == "Pending" || s.Status == "InProgress").ToList();
+                    foreach (var step in remainingSteps)
                     {
                         step.Status = "Skipped";
-                        step.Comments = "Skipped - Group requirement already met";
+                        step.Comments = $"Skipped - Group {step.ApprovalGroupName ?? "requirement"} already met in this step";
                         step.ActionDate = DateTime.UtcNow;
+                        
+                        _logger.LogInformation("Skipped step {StepId} for {ApproverEmail} in step {StepNumber} - group requirement met", 
+                            step.Id, step.ApproverEmail, step.StepNumber);
                     }
 
-                    // Check next step and skip if same group
+                    // Check and skip future steps from same groups that already approved
                     await CheckAndSkipSameGroupNextStepsAsync(workflow, currentStepNumber);
                     
-                    // Activate next appropriate step
+                    // Activate next appropriate step (this will now handle skipped steps properly)
                     await ActivateNextStepAsync(workflow, currentStepNumber);
                     
                     await _context.SaveChangesAsync();
                     
-                    _logger.LogInformation("Advanced workflow for request {RequestId} from step {CurrentStep} to next step", 
-                        requestId, currentStepNumber);
+                    // Verify workflow advancement
+                    var nextActiveStep = await FindNextActiveStepNumberAsync(workflow, currentStepNumber);
+                    if (nextActiveStep.HasValue)
+                    {
+                        _logger.LogInformation("Successfully advanced workflow for request {RequestId} from step {CurrentStep} to step {NextStep}", 
+                            requestId, currentStepNumber, nextActiveStep.Value);
+                    }
+                    else
+                    {
+                        _logger.LogInformation("Workflow for request {RequestId} completed after step {CurrentStep} - no more active steps", 
+                            requestId, currentStepNumber);
+                    }
+                }
+                else
+                {
+                    _logger.LogInformation("Step {StepNumber} for request {RequestId} not yet complete - waiting for more approvals", 
+                        currentStepNumber, requestId);
                 }
             }
             catch (Exception ex)
@@ -610,27 +629,40 @@ namespace TradingLimitMVC.Controllers
             }
         }
 
-        // Check and skip next steps if they belong to the same group that already approved
+        // Check and skip next steps if they belong to the same group and role that already approved
         private async Task CheckAndSkipSameGroupNextStepsAsync(ApprovalWorkflow workflow, int currentStepNumber)
         {
             try
             {
-                // Get groups that approved the current step
-                var approvedGroups = workflow.ApprovalSteps
+                // Get groups and roles that approved the current step (both must be present)
+                var approvedGroupRoles = workflow.ApprovalSteps
                     .Where(s => s.StepNumber == currentStepNumber && s.Status == "Approved")
-                    .Select(s => s.ApprovalGroupId)
-                    .Where(gid => gid.HasValue)
-                    .ToHashSet();
+                    .Select(s => new { 
+                        GroupId = s.ApprovalGroupId, 
+                        Role = s.ApproverRole 
+                    })
+                    .Where(gr => gr.GroupId.HasValue && !string.IsNullOrEmpty(gr.Role))
+                    .ToList();
 
-                if (!approvedGroups.Any())
+                if (!approvedGroupRoles.Any())
                 {
-                    return; // No group information available
+                    _logger.LogInformation("No complete group+role information available for current step {StepNumber} in workflow {WorkflowId} - skipping group+role-based step skipping", 
+                        currentStepNumber, workflow.Id);
+                    return;
                 }
 
                 var nextStepNumber = currentStepNumber + 1;
                 var maxSteps = workflow.ApprovalSteps.Max(s => s.StepNumber);
+                int totalStepsSkipped = 0;
 
-                // Keep checking subsequent steps for same group members
+                var approvedGroups = approvedGroupRoles.Where(gr => gr.GroupId.HasValue).Select(gr => gr.GroupId!.Value).ToHashSet();
+                var approvedRoles = approvedGroupRoles.Where(gr => !string.IsNullOrEmpty(gr.Role)).Select(gr => gr.Role!).ToHashSet();
+
+                _logger.LogInformation("Starting group+role-based step skipping for workflow {WorkflowId}. Group+role combinations that approved step {StepNumber}: [{GroupRoleCombos}]", 
+                    workflow.Id, currentStepNumber, 
+                    string.Join(", ", approvedGroupRoles.Select(gr => $"Group:{gr.GroupId}+Role:{gr.Role}")));
+
+                // Keep checking subsequent steps for same group+role combinations
                 while (nextStepNumber <= maxSteps)
                 {
                     var nextSteps = workflow.ApprovalSteps
@@ -639,48 +671,84 @@ namespace TradingLimitMVC.Controllers
 
                     if (!nextSteps.Any())
                     {
-                        break;
+                        nextStepNumber++;
+                        continue;
                     }
 
-                    // Check if all next steps belong to groups that already approved
-                    bool allNextStepsFromApprovedGroups = nextSteps.All(step => 
-                        step.ApprovalGroupId.HasValue && 
-                        approvedGroups.Contains(step.ApprovalGroupId.Value));
+                    // Check if steps belong to groups AND roles that already approved
+                    var stepsToSkip = nextSteps.Where(step => 
+                        (step.ApprovalGroupId.HasValue && approvedGroups.Contains(step.ApprovalGroupId.Value)) &&
+                        (!string.IsNullOrEmpty(step.ApproverRole) && approvedRoles.Contains(step.ApproverRole)) &&
+                        (step.Status == "Pending" || step.Status == "InProgress")).ToList();
 
-                    if (allNextStepsFromApprovedGroups)
+                    if (stepsToSkip.Any())
                     {
-                        // Skip all steps in this step number since same group already approved
-                        foreach (var step in nextSteps.Where(s => s.Status == "Pending" || s.Status == "InProgress"))
+                        // Skip steps from groups AND roles that already approved (both criteria must match)
+                        foreach (var step in stepsToSkip)
                         {
+                            string skipReason = $"Group {step.ApprovalGroupName ?? step.ApprovalGroupId?.ToString() ?? "Unknown"} with role '{step.ApproverRole}' already approved in step {currentStepNumber}";
+                            
                             step.Status = "Skipped";
-                            step.Comments = $"Skipped - Group {step.ApprovalGroupName} already approved in step {currentStepNumber}";
+                            step.Comments = $"Skipped - {skipReason}";
                             step.ActionDate = DateTime.UtcNow;
+                            totalStepsSkipped++;
+                            
+                            _logger.LogInformation("Skipped step {StepId} (Step {StepNumber}) for {ApproverEmail} from group {GroupName} with role {Role} - {SkipReason}", 
+                                step.Id, step.StepNumber, step.ApproverEmail, step.ApprovalGroupName, step.ApproverRole, skipReason);
                         }
 
-                        _logger.LogInformation("Skipped step {StepNumber} for workflow {WorkflowId} - same groups already approved", 
-                            nextStepNumber, workflow.Id);
+                        // Check if ALL steps in this step number were skipped
+                        bool allStepsInNumberSkipped = nextSteps.All(s => 
+                            s.Status == "Skipped" || s.Status == "Approved" || s.Status == "Rejected");
 
+                        if (allStepsInNumberSkipped)
+                        {
+                            _logger.LogInformation("All steps in step number {StepNumber} were skipped or completed for workflow {WorkflowId}", 
+                                nextStepNumber, workflow.Id);
+                        }
+                    }
+
+                    // Check if there are still active steps in this step number (from different group+role combinations)
+                    bool hasRemainingActiveSteps = nextSteps.Any(step => 
+                        step.Status == "Pending" || step.Status == "InProgress");
+
+                    if (!hasRemainingActiveSteps)
+                    {
+                        // All steps in this number are processed, continue to next number
                         nextStepNumber++;
                     }
                     else
                     {
-                        // Found steps with different groups, stop skipping
+                        // Found steps from different group+role combinations that need processing, stop skipping
+                        _logger.LogInformation("Found remaining active steps in step {StepNumber} from different group+role combinations - stopping skip process", 
+                            nextStepNumber);
                         break;
                     }
+                }
+
+                if (totalStepsSkipped > 0)
+                {
+                    _logger.LogInformation("Group+role-based skipping completed for workflow {WorkflowId}: {SkippedCount} steps skipped due to same-group AND same-role approval", 
+                        workflow.Id, totalStepsSkipped);
+                }
+                else
+                {
+                    _logger.LogInformation("No steps were skipped for workflow {WorkflowId} - no matching group+role combinations found in future steps", 
+                        workflow.Id);
                 }
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error checking and skipping same group steps for workflow {WorkflowId}", workflow.Id);
+                _logger.LogError(ex, "Error checking and skipping same group/role steps for workflow {WorkflowId}", workflow.Id);
             }
         }
 
-        // Check if a step is complete based on group-based approval logic
+        // Check if a step is complete based on group and role-based approval logic
         private async Task<bool> IsStepCompleteAsync(List<ApprovalStep> currentStepApprovals, int stepNumber)
         {
             try
             {
-                // Enhanced: Use ApprovalGroupId field for more efficient checking
+                // Enhanced: Use ApprovalGroupId and ApproverRole fields for more efficient checking
                 var approvedGroups = currentStepApprovals
                     .Where(a => a.Status == "Approved" && a.ApprovalGroupId.HasValue)
                     .Select(a => a.ApprovalGroupId!.Value)
@@ -689,6 +757,17 @@ namespace TradingLimitMVC.Controllers
                 var requiredGroups = currentStepApprovals
                     .Where(s => s.ApprovalGroupId.HasValue)
                     .Select(s => s.ApprovalGroupId!.Value)
+                    .ToHashSet();
+
+                // Also check for role-based approvals
+                var approvedRoles = currentStepApprovals
+                    .Where(a => a.Status == "Approved" && !string.IsNullOrEmpty(a.ApproverRole))
+                    .Select(a => a.ApproverRole!)
+                    .ToHashSet();
+
+                var requiredRoles = currentStepApprovals
+                    .Where(s => !string.IsNullOrEmpty(s.ApproverRole))
+                    .Select(s => s.ApproverRole!)
                     .ToHashSet();
 
                 // Fallback for legacy data without ApprovalGroupId
@@ -720,17 +799,21 @@ namespace TradingLimitMVC.Controllers
                     requiredGroups = legacyRequiredGroups.Where(g => g.HasValue).Select(g => g!.Value).ToHashSet();
                 }
 
-                // Step is complete if we have at least one approval from any group
-                // Option 1: Any one group approval completes the step (ParallelAnyOne)
+                // Step is complete if we have at least one approval from any group OR any role
+                // Option 1: Any one group or role approval completes the step (ParallelAnyOne)
                 bool anyGroupApproved = approvedGroups.Count > 0;
+                bool anyRoleApproved = approvedRoles.Count > 0;
+                bool stepCompleteByGroupOrRole = anyGroupApproved || anyRoleApproved;
                 
-                // Option 2: All groups must approve (ParallelAll) - uncomment if needed
-                // bool allGroupsApproved = approvedGroups.Count == requiredGroups.Count;
+                // Option 2: All groups AND roles must approve (ParallelAll) - uncomment if needed
+                // bool allGroupsApproved = requiredGroups.Count > 0 && approvedGroups.Count == requiredGroups.Count;
+                // bool allRolesApproved = requiredRoles.Count > 0 && approvedRoles.Count == requiredRoles.Count;
+                // bool stepCompleteByAll = allGroupsApproved && allRolesApproved;
 
-                _logger.LogInformation("Step {StepNumber} status: Required groups: {RequiredCount}, Approved groups: {ApprovedCount}", 
-                    stepNumber, requiredGroups.Count, approvedGroups.Count);
+                _logger.LogInformation("Step {StepNumber} completion status: Required groups: {RequiredGroups}, Approved groups: {ApprovedGroups}, Required roles: {RequiredRoles}, Approved roles: {ApprovedRoles}, Complete: {IsComplete}", 
+                    stepNumber, requiredGroups.Count, approvedGroups.Count, requiredRoles.Count, approvedRoles.Count, stepCompleteByGroupOrRole);
 
-                return anyGroupApproved; // Change to allGroupsApproved if you need all groups to approve
+                return stepCompleteByGroupOrRole; // Change to stepCompleteByAll if you need all groups AND roles to approve
             }
             catch (Exception ex)
             {
@@ -739,36 +822,39 @@ namespace TradingLimitMVC.Controllers
             }
         }
 
-        // Activate the next step in the workflow
+        // Activate the next step in the workflow (handles skipped steps properly)
         private async Task ActivateNextStepAsync(ApprovalWorkflow workflow, int currentStepNumber)
         {
             try
             {
-                var nextStepNumber = currentStepNumber + 1;
-                var nextSteps = workflow.ApprovalSteps
-                    .Where(s => s.StepNumber == nextStepNumber)
-                    .ToList();
-
-                if (nextSteps.Any())
+                var nextActiveStepNumber = await FindNextActiveStepNumberAsync(workflow, currentStepNumber);
+                
+                if (nextActiveStepNumber.HasValue)
                 {
-                    // Activate all steps in the next step number by updating their status
+                    var nextSteps = workflow.ApprovalSteps
+                        .Where(s => s.StepNumber == nextActiveStepNumber.Value)
+                        .ToList();
+
+                    // Activate all steps in the next active step number
                     foreach (var step in nextSteps)
                     {
                         if (step.Status == "Pending")
                         {
                             step.Status = "InProgress";
+                            _logger.LogInformation("Activated step {StepId} (Step {StepNumber}) for approver {ApproverEmail} in workflow {WorkflowId}", 
+                                step.Id, step.StepNumber, step.ApproverEmail, workflow.Id);
                         }
                     }
 
-                    // Update workflow current step
-                    workflow.CurrentStep = nextStepNumber;
+                    // Update workflow current step to the next active step
+                    workflow.CurrentStep = nextActiveStepNumber.Value;
                     
-                    _logger.LogInformation("Activated step {NextStepNumber} for workflow {WorkflowId}", 
-                        nextStepNumber, workflow.Id);
+                    _logger.LogInformation("Advanced workflow {WorkflowId} from step {CurrentStep} to step {NextStep} (skipped intermediate steps)", 
+                        workflow.Id, currentStepNumber, nextActiveStepNumber.Value);
                 }
                 else
                 {
-                    // No more steps - workflow is complete
+                    // No more active steps - workflow is complete
                     workflow.Status = "Approved";
                     workflow.CompletedDate = DateTime.UtcNow;
                     
@@ -780,7 +866,7 @@ namespace TradingLimitMVC.Controllers
                         request.ModifiedDate = DateTime.UtcNow;
                     }
                     
-                    _logger.LogInformation("Workflow {WorkflowId} completed - all steps approved", workflow.Id);
+                    _logger.LogInformation("Workflow {WorkflowId} completed - all required steps processed (some may have been skipped)", workflow.Id);
                 }
             }
             catch (Exception ex)
@@ -788,6 +874,62 @@ namespace TradingLimitMVC.Controllers
                 _logger.LogError(ex, "Error activating next step after step {CurrentStepNumber} in workflow {WorkflowId}", 
                     currentStepNumber, workflow.Id);
             }
+        }
+
+        // Find the next step number that has non-skipped steps
+        private async Task<int?> FindNextActiveStepNumberAsync(ApprovalWorkflow workflow, int currentStepNumber)
+        {
+            try
+            {
+                var maxStepNumber = workflow.ApprovalSteps.Max(s => s.StepNumber);
+                
+                // Look for the next step that has at least one non-skipped step
+                for (int stepNumber = currentStepNumber + 1; stepNumber <= maxStepNumber; stepNumber++)
+                {
+                    var stepsInThisNumber = workflow.ApprovalSteps
+                        .Where(s => s.StepNumber == stepNumber)
+                        .ToList();
+                    
+                    if (stepsInThisNumber.Any())
+                    {
+                        // Check if this step has any non-skipped steps
+                        bool hasActiveSteps = stepsInThisNumber.Any(s => 
+                            s.Status == "Pending" || 
+                            s.Status == "InProgress" || 
+                            (!IsStepPermanentlySkipped(s) && s.Status != "Approved" && s.Status != "Rejected"));
+                        
+                        if (hasActiveSteps)
+                        {
+                            _logger.LogInformation("Found next active step: {StepNumber} for workflow {WorkflowId}", 
+                                stepNumber, workflow.Id);
+                            return stepNumber;
+                        }
+                        else
+                        {
+                            _logger.LogInformation("Step {StepNumber} in workflow {WorkflowId} has no active steps (all skipped/completed)", 
+                                stepNumber, workflow.Id);
+                        }
+                    }
+                }
+                
+                _logger.LogInformation("No more active steps found after step {CurrentStepNumber} in workflow {WorkflowId}", 
+                    currentStepNumber, workflow.Id);
+                return null; // No more active steps
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error finding next active step after step {CurrentStepNumber} in workflow {WorkflowId}", 
+                    currentStepNumber, workflow.Id);
+                return null;
+            }
+        }
+
+        // Helper method to determine if a step is permanently skipped (vs temporarily inactive)
+        private bool IsStepPermanentlySkipped(ApprovalStep step)
+        {
+            return step.Status == "Skipped" || 
+                   (step.Comments != null && step.Comments.Contains("Skipped - Group")) ||
+                   (step.Comments != null && step.Comments.Contains("already approved"));
         }
 
         private async Task<bool> CanUserApproveRequestAsync(string userEmail, TradingLimitRequest request)
@@ -1252,6 +1394,102 @@ namespace TradingLimitMVC.Controllers
             {
                 _logger.LogError(ex, "Error populating approval groups");
                 return Json(new { success = false, message = "Error updating approval groups: " + ex.Message });
+            }
+        }
+
+        // Helper method to validate and fix workflow state if needed
+        [HttpGet("ValidateWorkflowState/{requestId}")]
+        public async Task<IActionResult> ValidateWorkflowState(int requestId)
+        {
+            try
+            {
+                var workflow = await _context.ApprovalWorkflows
+                    .Include(w => w.ApprovalSteps)
+                    .FirstOrDefaultAsync(w => w.TradingLimitRequestId == requestId);
+
+                if (workflow == null)
+                {
+                    return Json(new { success = false, message = "Workflow not found" });
+                }
+
+                var validationResults = new List<string>();
+
+                // Check if current step is valid
+                var currentStepSteps = workflow.ApprovalSteps
+                    .Where(s => s.StepNumber == workflow.CurrentStep)
+                    .ToList();
+
+                if (!currentStepSteps.Any())
+                {
+                    validationResults.Add($"Warning: Current step {workflow.CurrentStep} has no steps defined");
+                }
+
+                // Check if there are active steps in current step
+                var activeStepsInCurrentStep = currentStepSteps
+                    .Where(s => s.Status == "InProgress")
+                    .ToList();
+
+                if (!activeStepsInCurrentStep.Any() && workflow.Status != "Approved")
+                {
+                    validationResults.Add($"Issue: No active steps found in current step {workflow.CurrentStep}");
+                    
+                    // Try to find next valid step
+                    var nextActiveStep = await FindNextActiveStepNumberAsync(workflow, workflow.CurrentStep - 1);
+                    if (nextActiveStep.HasValue)
+                    {
+                        validationResults.Add($"Suggested fix: Advance to step {nextActiveStep.Value}");
+                        
+                        // Auto-fix if requested
+                        workflow.CurrentStep = nextActiveStep.Value;
+                        var stepsToActivate = workflow.ApprovalSteps
+                            .Where(s => s.StepNumber == nextActiveStep.Value && s.Status == "Pending")
+                            .ToList();
+                        
+                        foreach (var step in stepsToActivate)
+                        {
+                            step.Status = "InProgress";
+                        }
+                        
+                        await _context.SaveChangesAsync();
+                        validationResults.Add($"Fixed: Advanced workflow to step {nextActiveStep.Value}");
+                    }
+                    else if (workflow.ApprovalSteps.All(s => s.Status == "Approved" || s.Status == "Skipped" || s.Status == "Rejected"))
+                    {
+                        // All steps are complete
+                        workflow.Status = "Approved";
+                        workflow.CompletedDate = DateTime.UtcNow;
+                        
+                        var request = await _context.TradingLimitRequests.FindAsync(requestId);
+                        if (request != null)
+                        {
+                            request.Status = "Approved";
+                            request.ModifiedDate = DateTime.UtcNow;
+                        }
+                        
+                        await _context.SaveChangesAsync();
+                        validationResults.Add("Fixed: Marked workflow as completed");
+                    }
+                }
+
+                // Provide workflow statistics
+                var stepStats = workflow.ApprovalSteps
+                    .GroupBy(s => s.Status)
+                    .ToDictionary(g => g.Key, g => g.Count());
+
+                return Json(new { 
+                    success = true, 
+                    workflowId = workflow.Id,
+                    currentStep = workflow.CurrentStep,
+                    workflowStatus = workflow.Status,
+                    validationResults = validationResults,
+                    stepStatistics = stepStats,
+                    message = validationResults.Any() ? string.Join("; ", validationResults) : "Workflow state is valid"
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error validating workflow state for request {RequestId}", requestId);
+                return Json(new { success = false, message = "Error validating workflow: " + ex.Message });
             }
         }
 
