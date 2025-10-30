@@ -414,6 +414,32 @@
             box-shadow: 0 2px 8px rgba(0,0,0,0.15), 0 0 0 0 rgba(0, 123, 255, 0);
         }
     }
+
+    /* Multi-Approval Styles */
+    .approver-step {
+        background: #fafbfc;
+        transition: all 0.2s;
+    }
+
+    .approver-step:hover {
+        background: #f5f7fa;
+        border-color: #007bff !important;
+    }
+
+    .card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    }
+
+    .btn-lg {
+        padding: 0.75rem 1.5rem;
+        font-size: 1rem;
+        font-weight: 500;
+    }
+
+    .badge {
+        font-size: 0.75rem;
+    }
 </style>
 
 <div class="page-wrapper">
@@ -789,18 +815,169 @@
                 </div>
             }
 
-            <!-- Action Buttons -->
+            <!-- Submit Options Section -->
+            @if (Model.Status == "Draft")
+            {
+                <div class="info-section">
+                    <h3 class="section-title">
+                        <i class="fas fa-paper-plane me-2"></i>
+                        Submit Request for Approval
+                    </h3>
+                    
+                    <!-- Approval Setup (Always Visible) -->
+                    <div id="multiApprovalSetup">
+                        <form asp-action="SubmitMultiApprovalPost" method="post" id="multiApprovalForm">
+                            @Html.AntiForgeryToken()
+                            <input name="Id" type="hidden" value="@Model.Id" />
+                            
+                            <!-- Workflow Configuration Card -->
+                            <div class="card border-0 shadow-sm mb-4">
+                                <div class="card-header bg-primary text-white py-3">
+                                    <h5 class="card-title mb-0 text-white">
+                                        <i class="fas fa-cogs me-2"></i>
+                                        Workflow Configuration
+                                    </h5>
+                                </div>
+                                <div class="card-body p-4">
+                                    <div class="row">
+                                        <div class="col-md-6 mb-4">
+                                            <label for="WorkflowType" class="form-label">
+                                                <i class="fas fa-route me-1"></i>
+                                                Workflow Type <span class="text-danger">*</span>
+                                            </label>
+                                            <select name="WorkflowType" id="WorkflowType" class="form-select">
+                                                <option value="Sequential">Sequential - Approvers must approve in order</option>
+                                                <option value="Parallel">Parallel - All approvers can approve simultaneously</option>
+                                            </select>
+                                            <div class="form-text">
+                                                <strong>Sequential:</strong> Each approver must wait for the previous one to complete.<br>
+                                                <strong>Parallel:</strong> All approvers receive notification at the same time.
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Approvers Configuration Card -->
+                            <div class="card border-0 shadow-sm mb-4">
+                                <div class="card-header bg-success text-white py-3">
+                                    <h5 class="card-title mb-0 text-white">
+                                        <i class="fas fa-user-check me-2"></i>
+                                        System-Defined Approvers
+                                    </h5>
+                                </div>
+                                <div class="card-body p-4">
+                                    <div id="approversContainer">
+                                        <!-- Approvers List (Read-only) -->
+                                        <div class="approvers-list">
+                                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                                <h6 class="mb-0">
+                                                    <i class="fas fa-users me-2"></i>
+                                                    Designated Approvers
+                                                </h6>
+                                                <span class="badge bg-info">Auto-Selected from System</span>
+                                            </div>
+                                            
+                                            @if (ViewBag.AvailableApprovers != null)
+                                            {
+                                                <div class="row">
+                                                    @{
+                                                        var approverIndex = 0;
+                                                    }
+                                                    @foreach (var approver in (List<TradingLimitMVC.Models.ApproverInfo>)ViewBag.AvailableApprovers)
+                                                    {
+                                                        <div class="col-md-6 mb-3">
+                                                            <div class="card border-0 bg-light h-100">
+                                                                <div class="card-body p-3">
+                                                                    <div class="d-flex align-items-start">
+                                                                        <div class="form-check me-3">
+                                                                            <input class="form-check-input" type="checkbox" 
+                                                                                   value="@approver.Email" 
+                                                                                   name="SelectedApprovers"
+                                                                                   checked disabled>
+                                                                        </div>
+                                                                        <div class="flex-grow-1">
+                                                                            <div class="d-flex align-items-center mb-2">
+                                                                                <span class="badge bg-primary me-2">Step @(approverIndex + 1)</span>
+                                                                                <h6 class="card-title mb-0 text-primary">
+                                                                                    @approver.Name
+                                                                                </h6>
+                                                                            </div>
+                                                                            <p class="card-text mb-2 mt-1">
+                                                                                <small class="text-muted">
+                                                                                    <i class="fas fa-briefcase me-1"></i>@approver.Role
+                                                                                </small><br>
+                                                                                <small class="text-muted">
+                                                                                    <i class="fas fa-building me-1"></i>@approver.Department
+                                                                                </small><br>
+                                                                                <small class="text-muted">
+                                                                                    <i class="fas fa-envelope me-1"></i>@approver.Email
+                                                                                </small>
+                                                                                @if (!string.IsNullOrEmpty(approver.PhoneNumber))
+                                                                                {
+                                                                                    <br><small class="text-muted">
+                                                                                        <i class="fas fa-phone me-1"></i>@approver.PhoneNumber
+                                                                                    </small>
+                                                                                }
+                                                                            </p>
+                                                                        </div>
+                                                                    </div>
+                                                                    <!-- Hidden inputs for form submission -->
+                                                                    <input type="hidden" name="ApprovalSteps[@approverIndex].Email" value="@approver.Email" />
+                                                                    <input type="hidden" name="ApprovalSteps[@approverIndex].Name" value="@approver.Name" />
+                                                                    <input type="hidden" name="ApprovalSteps[@approverIndex].Role" value="@approver.Role" />
+                                                                    <input type="hidden" name="ApprovalSteps[@approverIndex].StepNumber" value="@(approverIndex + 1)" />
+                                                                    <input type="hidden" name="ApprovalSteps[@approverIndex].IsRequired" value="true" />
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                        approverIndex++;
+                                                    }
+                                                </div>
+                                            }
+                                            else
+                                            {
+                                                <div class="alert alert-warning">
+                                                    <i class="fas fa-exclamation-triangle me-2"></i>
+                                                    No approvers found in the system. Please contact your administrator.
+                                                </div>
+                                            }
+                                        </div>
+                                    </div>
+
+                                    <div class="alert alert-info border-0 bg-info bg-opacity-10">
+                                        <div class="d-flex align-items-start">
+                                            <i class="fas fa-info-circle text-info me-2 mt-1"></i>
+                                            <div>
+                                                <strong>Approval Process Information:</strong>
+                                                <ul class="mb-0 mt-2">
+                                                    <li><strong>Auto-Assignment:</strong> All designated approvers from the system will be included</li>
+                                                    <li><strong>Sequential:</strong> Approvers will receive notifications in the order displayed</li>
+                                                    <li><strong>Parallel:</strong> All approvers receive notifications simultaneously</li>
+                                                    <li><strong>Required Approval:</strong> All listed approvers must approve for the request to proceed</li>
+                                                </ul>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Submit Actions for Multi-Approval -->
+                            <div class="d-flex gap-3 mb-4">
+                                <button type="submit" class="btn btn-success btn-lg px-4">
+                                    <i class="fas fa-paper-plane me-2"></i>
+                                    Submit to All Designated Approvers
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            }
+
+            <!-- Other Action Buttons -->
             <div class="btn-group">
                 @if (Model.Status == "Draft")
                 {
-                    <div class="btn-group" role="group" aria-label="Submit Options">
-                        <a asp-action="Submit" asp-route-id="@Model.Id" class="btn btn-success">
-                            <i class="fas fa-user-check"></i> Single Approver
-                        </a>
-                        <a asp-action="SubmitMultiApproval" asp-route-id="@Model.Id" class="btn btn-primary">
-                            <i class="fas fa-users-cog"></i> Multi-Approver Workflow
-                        </a>
-                    </div>
                     <a asp-action="Edit" asp-route-id="@Model.Id" class="btn btn-warning">
                         <i class="fas fa-edit"></i> Edit
                     </a>
@@ -816,3 +993,52 @@
         </div>
     </div>
 </div>
+
+@section Scripts {
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-validate/1.19.5/jquery.validate.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-validation-unobtrusive/3.2.12/jquery.validate.unobtrusive.min.js"></script>
+    
+    <script>
+        $(document).ready(function() {
+            // Form validation
+            $('#multiApprovalForm').on('submit', function(e) {
+                // Clear any previous alerts
+                $('.validation-alert').remove();
+                
+                // Check if we have any approvers (hidden inputs with Email)
+                const approverEmails = $('input[name*="Email"][type="hidden"]').map(function() {
+                    return $(this).val().trim();
+                }).get();
+                
+                const validEmails = approverEmails.filter(email => email.length > 0);
+                
+                if (validEmails.length === 0) {
+                    e.preventDefault();
+                    showValidationAlert('No approvers are available in the system. Please contact your administrator.', 'danger');
+                    return false;
+                }
+                
+                return confirm(`Are you sure you want to submit this request to ${validEmails.length} approver(s) in the defined step sequence?`);
+            });
+            
+            // Function to show validation alerts
+            function showValidationAlert(message, type) {
+                const alertHtml = `
+                    <div class="alert alert-${type} alert-dismissible fade show validation-alert" role="alert">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        ${message}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                `;
+                $('#multiApprovalForm').prepend(alertHtml);
+                
+                // Scroll to the alert
+                $('html, body').animate({
+                    scrollTop: $('#multiApprovalForm').offset().top - 20
+                }, 500);
+            }
+            
+
+        });
+    </script>
+}

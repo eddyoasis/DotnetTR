@@ -63,6 +63,45 @@ namespace TradingLimitMVC.Controllers
                 {
                     return NotFound();
                 }
+
+                // Get available approvers from SAPDropdownItems where TypeName indicates approver roles
+                var approvers = await _context.SAPDropdownItems
+                    .Where(s => (s.TypeName.Contains("Manager") || s.TypeName.Contains("HOD") || 
+                                s.TypeName.Contains("Approver") || s.TypeName.Contains("Director")) &&
+                               !string.IsNullOrEmpty(s.Email))
+                    .Select(s => new ApproverInfo
+                    {
+                        Id = s.ID,
+                        Name = !string.IsNullOrEmpty(s.ContactPerson) ? s.ContactPerson : s.DDName,
+                        Email = s.Email!,
+                        Role = s.TypeName,
+                        Department = s.DDName,
+                        PhoneNumber = s.PhoneNumber ?? string.Empty
+                    })
+                    .ToListAsync();
+
+                approvers.Add(new ApproverInfo
+                {
+                    Name = "eddy",
+                    Email = "eddy.wang@kgi.com",
+                    Role = "Developer"
+                });
+
+                approvers.Add(new ApproverInfo
+                {
+                    Name = "eddy2",
+                    Email = "eddy.wang@kgi.com",
+                    Role = "Developer2"
+                });
+
+                approvers.Add(new ApproverInfo
+                {
+                    Name = "eddy3",
+                    Email = "eddy.wang@kgi.com",
+                    Role = "Developer3"
+                });
+
+                ViewBag.AvailableApprovers = approvers;
                 return View(request);
             }
             catch (Exception ex)
@@ -302,44 +341,13 @@ namespace TradingLimitMVC.Controllers
         }
 
         // GET: TradingLimitRequest/SubmitMultiApproval/5
+        // Redirect to Details page since multi-approval is now integrated there
         [HttpGet("SubmitMultiApproval/{id}")]
-        public async Task<IActionResult> SubmitMultiApproval(int id)
+        public IActionResult SubmitMultiApproval(int id)
         {
-            try
-            {
-                var request = await _tradingLimitRequestService.GetByIdAsync(id);
-                if (request == null)
-                {
-                    TempData["ErrorMessage"] = "Trading Limit Request not found.";
-                    return RedirectToAction(nameof(Index));
-                }
-
-                // Check if request can be submitted (should be in Draft status)
-                if (request.Status != "Draft")
-                {
-                    TempData["ErrorMessage"] = "This request cannot be submitted in its current status.";
-                    return RedirectToAction("Details", new { id });
-                }
-
-                var viewModel = new MultiApprovalSubmitViewModel
-                {
-                    Id = id,
-                    Request = request,
-                    WorkflowType = "Sequential",
-                    ApprovalSteps = new List<Models.ViewModels.ApprovalStepViewModel>
-                    {
-                        new Models.ViewModels.ApprovalStepViewModel { IsRequired = true }
-                    }
-                };
-
-                return View(viewModel);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error loading multi-approval submit page for trading limit request with ID {Id}", id);
-                TempData["ErrorMessage"] = "An error occurred while loading the submit page.";
-                return RedirectToAction(nameof(Index));
-            }
+            // Redirect to Details page where multi-approval functionality is now integrated
+            TempData["ShowMultiApprovalSetup"] = "true";
+            return RedirectToAction(nameof(Details), new { id });
         }
 
         // POST: TradingLimitRequest/SubmitMultiApproval
@@ -376,8 +384,9 @@ namespace TradingLimitMVC.Controllers
                 // Convert view model to service request objects
                 var approvers = model.ApprovalSteps
                     .Where(s => !string.IsNullOrWhiteSpace(s.Email))
-                    .Select(s => new ApprovalStepRequest
+                    .Select((s, index) => new ApprovalStepRequest
                     {
+                        StepNumber = s.StepNumber > 0 ? s.StepNumber : index + 1,
                         Email = s.Email,
                         Name = s.Name,
                         Role = s.Role,

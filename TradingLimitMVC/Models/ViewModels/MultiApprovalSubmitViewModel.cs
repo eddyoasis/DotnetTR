@@ -17,6 +17,9 @@ namespace TradingLimitMVC.Models.ViewModels
 
     public class ApprovalStepViewModel
     {
+        [Display(Name = "Step Number")]
+        public int StepNumber { get; set; }
+        
         [Required(ErrorMessage = "Email is required")]
         [EmailAddress(ErrorMessage = "Please enter a valid email address")]
         [Display(Name = "Approver Email")]

@@ -51,7 +51,7 @@ namespace TradingLimitMVC.Services
                     var step = new ApprovalStep
                     {
                         ApprovalWorkflowId = workflow.Id,
-                        StepNumber = i + 1,
+                        StepNumber = approver.StepNumber,
                         ApproverEmail = approver.Email,
                         ApproverName = approver.Name,
                         ApproverRole = approver.Role,
@@ -339,6 +339,7 @@ namespace TradingLimitMVC.Services
     // Helper class for creating approval steps
     public class ApprovalStepRequest
     {
+        public int StepNumber { get; set; }
         public string Email { get; set; } = string.Empty;
         public string? Name { get; set; }
         public string? Role { get; set; }
