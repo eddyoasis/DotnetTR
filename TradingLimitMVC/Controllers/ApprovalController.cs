@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using TradingLimitMVC.Data;
@@ -7,6 +8,7 @@ using System.Security.Claims;
 
 namespace TradingLimitMVC.Controllers
 {
+    [Authorize]
     [Route("Approval")]
     public class ApprovalController : Controller
     {
@@ -58,6 +60,8 @@ namespace TradingLimitMVC.Controllers
             {
                 var request = await _context.TradingLimitRequests
                     .Include(t => t.Attachments)
+                    .Include(t => t.ApprovalWorkflow)
+                        .ThenInclude(w => w!.ApprovalSteps)
                     .FirstOrDefaultAsync(m => m.Id == id);
 
                 if (request == null)
@@ -89,7 +93,7 @@ namespace TradingLimitMVC.Controllers
         }
 
         // POST: Approval/Approve
-        [HttpPost]
+        [HttpPost("Approve")]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Approve(ApprovalActionViewModel model)
         {
@@ -101,7 +105,10 @@ namespace TradingLimitMVC.Controllers
                     return RedirectToAction("Details", new { id = model.RequestId });
                 }
 
-                var request = await _context.TradingLimitRequests.FindAsync(model.RequestId);
+                var request = await _context.TradingLimitRequests
+                    .Include(r => r.ApprovalWorkflow)
+                        .ThenInclude(w => w!.ApprovalSteps)
+                    .FirstOrDefaultAsync(r => r.Id == model.RequestId);
                 if (request == null)
                 {
                     TempData["ErrorMessage"] = "Trading limit request not found.";
@@ -146,7 +153,7 @@ namespace TradingLimitMVC.Controllers
         }
 
         // POST: Approval/Reject
-        [HttpPost]
+        [HttpPost("Reject")]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Reject(ApprovalActionViewModel model)
         {
@@ -158,7 +165,10 @@ namespace TradingLimitMVC.Controllers
                     return RedirectToAction("Details", new { id = model.RequestId });
                 }
 
-                var request = await _context.TradingLimitRequests.FindAsync(model.RequestId);
+                var request = await _context.TradingLimitRequests
+                    .Include(r => r.ApprovalWorkflow)
+                        .ThenInclude(w => w!.ApprovalSteps)
+                    .FirstOrDefaultAsync(r => r.Id == model.RequestId);
                 if (request == null)
                 {
                     TempData["ErrorMessage"] = "Trading limit request not found.";
@@ -203,7 +213,7 @@ namespace TradingLimitMVC.Controllers
         }
 
         // POST: Approval/RequestRevision
-        [HttpPost]
+        [HttpPost("RequestRevision")]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> RequestRevision(ApprovalActionViewModel model)
         {
@@ -215,7 +225,10 @@ namespace TradingLimitMVC.Controllers
                     return RedirectToAction("Details", new { id = model.RequestId });
                 }
 
-                var request = await _context.TradingLimitRequests.FindAsync(model.RequestId);
+                var request = await _context.TradingLimitRequests
+                    .Include(r => r.ApprovalWorkflow)
+                        .ThenInclude(w => w!.ApprovalSteps)
+                    .FirstOrDefaultAsync(r => r.Id == model.RequestId);
                 if (request == null)
                 {
                     TempData["ErrorMessage"] = "Trading limit request not found.";
@@ -265,14 +278,7 @@ namespace TradingLimitMVC.Controllers
 
         private async Task<bool> CanUserApproveRequestAsync(string userEmail, TradingLimitRequest request)
         {
-            // Check if user email matches the approval email assigned to this request
-            if (string.IsNullOrEmpty(userEmail) || string.IsNullOrEmpty(request.ApprovalEmail))
-            {
-                return false;
-            }
-
-            // Check if the current user's email matches the assigned approval email
-            if (!userEmail.Equals(request.ApprovalEmail, StringComparison.OrdinalIgnoreCase))
+            if (string.IsNullOrEmpty(userEmail))
             {
                 return false;
             }
@@ -283,7 +289,47 @@ namespace TradingLimitMVC.Controllers
                 return false;
             }
 
-            return true;
+            // Check if request has a multi-approval workflow
+            var workflow = await _context.ApprovalWorkflows
+                .Include(w => w.ApprovalSteps)
+                .FirstOrDefaultAsync(w => w.TradingLimitRequestId == request.Id);
+
+            if (workflow != null)
+            {
+                // Multi-approval workflow: Check if user has an active approval step
+                var userStep = workflow.ApprovalSteps
+                    .FirstOrDefault(s => s.ApproverEmail.Equals(userEmail, StringComparison.OrdinalIgnoreCase));
+
+                if (userStep == null)
+                {
+                    return false; // User is not an approver in this workflow
+                }
+
+                // For sequential workflows, only active steps can be approved
+                if (workflow.WorkflowType == "Sequential")
+                {
+                    return userStep.IsActive && (userStep.Status == "Pending" || userStep.Status == "InProgress");
+                }
+                
+                // For parallel workflows, any pending step can be approved
+                if (workflow.WorkflowType == "Parallel")
+                {
+                    return userStep.Status == "Pending" || userStep.Status == "InProgress";
+                }
+                
+                return false;
+            }
+            else
+            {
+                // Legacy single-approver workflow
+                if (string.IsNullOrEmpty(request.ApprovalEmail))
+                {
+                    return false;
+                }
+
+                // Check if the current user's email matches the assigned approval email
+                return userEmail.Equals(request.ApprovalEmail, StringComparison.OrdinalIgnoreCase);
+            }
         }
 
         private Task AddApprovalRecordAsync(int requestId, string approverEmail, string approverName, string action, string? comments)

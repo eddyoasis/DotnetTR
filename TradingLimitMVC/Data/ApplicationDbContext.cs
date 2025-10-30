@@ -144,7 +144,7 @@ namespace TradingLimitMVC.Data
 
             modelBuilder.Entity<ApprovalNotification>(entity =>
             {
-                entity.ToTable("ApprovalNotifications");
+                entity.ToTable("Temp_TL_ApprovalNotifications");
                 entity.HasKey(e => e.Id);
 
                 entity.Property(e => e.RequestType).IsRequired().HasMaxLength(50);

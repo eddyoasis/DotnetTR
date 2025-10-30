@@ -108,7 +108,7 @@ namespace TradingLimitMVC.Services
                     .OrderByDescending(r => r.SubmittedDate)
                     .ToListAsync();
 
-                return requests.Concat(legacyRequests);
+                return requests.Concat(legacyRequests).ToList();
             }
             catch (Exception ex)
             {

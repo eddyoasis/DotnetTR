@@ -94,10 +94,8 @@ app.UseMiddleware<CookieAuthMiddleware>();
 app.UseAuthorization();
 
 // Configure routing
-app.MapControllerRoute(
-name: "approval",
-pattern: "Approval/{action=Index}/{id?}",
-defaults: new { controller = "PurchaseRequisitionApproval" });
+// Note: Removed conflicting approval route that was redirecting to PurchaseRequisitionApproval
+// The ApprovalController now uses [Route("Approval")] attribute routing
 
 app.MapControllerRoute(
 name: "default",

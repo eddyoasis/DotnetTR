@@ -1,7 +1,7 @@
-@model TradingLimitMVC.Models.TradingLimitRequest
+@model TradingLimitMVC.Controllers.ApprovalDetailsViewModel
 
 @{
-    ViewData["Title"] = $"Approve Request - {Model.RequestId}";
+    ViewData["Title"] = $"Approve Request - {Model.Request.RequestId}";
 }
 
 <div class="container-fluid">
@@ -16,7 +16,7 @@
                             <i class="fas fa-check-circle me-1"></i>Approvals
                         </a>
                     </li>
-                    <li class="breadcrumb-item active" aria-current="page">@Model.RequestId</li>
+                    <li class="breadcrumb-item active" aria-current="page">@Model.Request.RequestId</li>
                 </ol>
             </nav>
 
@@ -26,12 +26,12 @@
                         Request Review & Approval
                     </h1>
                     <div class="d-flex align-items-center gap-3">
-                        <span class="badge bg-@(Model.Status == "Submitted" ? "primary" : "warning") bg-opacity-10 text-@(Model.Status == "Submitted" ? "primary" : "warning") px-3 py-2">
-                            @Model.Status
+                        <span class="badge bg-@(Model.Request.Status == "Submitted" ? "primary" : "warning") bg-opacity-10 text-@(Model.Request.Status == "Submitted" ? "primary" : "warning") px-3 py-2">
+                            @Model.Request.Status
                         </span>
                         <span class="text-muted">
                             <i class="fas fa-clock me-1"></i>
-                            Submitted @Model.SubmittedDate?.ToString("MMM dd, yyyy 'at' hh:mm tt")
+                            Submitted @Model.Request.SubmittedDate?.ToString("MMM dd, yyyy 'at' hh:mm tt")
                         </span>
                     </div>
                 </div>
@@ -53,24 +53,24 @@
                     <div class="row">
                         <div class="col-md-6 mb-3">
                             <label class="form-label text-muted">Request ID</label>
-                            <div class="fw-bold">@Model.RequestId</div>
+                            <div class="fw-bold">@Model.Request.RequestId</div>
                         </div>
                         <div class="col-md-6 mb-3">
                             <label class="form-label text-muted">Request Type</label>
-                            <div class="fw-bold">@Model.RequestType</div>
+                            <div class="fw-bold">@Model.Request.RequestType</div>
                         </div>
                         <div class="col-md-6 mb-3">
                             <label class="form-label text-muted">Client Code</label>
-                            <div class="fw-bold">@Model.ClientCode</div>
+                            <div class="fw-bold">@Model.Request.ClientCode</div>
                         </div>
                         <div class="col-md-6 mb-3">
                             <label class="form-label text-muted">TR Code</label>
-                            <div class="fw-bold">@Model.TRCode</div>
+                            <div class="fw-bold">@Model.Request.TRCode</div>
                         </div>
                         <div class="col-12 mb-3">
                             <label class="form-label text-muted">Brief Description</label>
                             <div class="p-3 bg-light rounded">
-                                @(string.IsNullOrEmpty(Model.BriefDescription) ? "No description provided" : Model.BriefDescription)
+                                @(string.IsNullOrEmpty(Model.Request.BriefDescription) ? "No description provided" : Model.Request.BriefDescription)
                             </div>
                         </div>
                     </div>
@@ -91,7 +91,7 @@
                             <div class="mb-4">
                                 <label class="form-label text-muted">Current GL Limit</label>
                                 <div class="display-6 text-primary fw-bold">
-                                    @Model.CurrentProposedLimit.ToString("C")
+                                    @Model.Request.CurrentProposedLimit.ToString("C")
                                 </div>
                             </div>
                         </div>
@@ -99,11 +99,11 @@
                             <div class="mb-4">
                                 <label class="form-label text-muted">Proposed GL Limit</label>
                                 <div class="display-6 text-success fw-bold">
-                                    @Model.GLProposedLimit.ToString("C")
+                                    @Model.Request.GLProposedLimit.ToString("C")
                                 </div>
                                 @{
-                                    var difference = Model.GLProposedLimit - Model.CurrentProposedLimit;
-                                    var percentageChange = Model.CurrentProposedLimit > 0 ? (difference / Model.CurrentProposedLimit) * 100 : 0;
+                                    var difference = Model.Request.GLProposedLimit - Model.Request.CurrentProposedLimit;
+                                    var percentageChange = Model.Request.CurrentProposedLimit > 0 ? (difference / Model.Request.CurrentProposedLimit) * 100 : 0;
                                 }
                                 @if (difference != 0)
                                 {
@@ -122,7 +122,7 @@
             </div>
 
             <!-- Attachments Card -->
-            @if (Model.HasSupportingDocuments && Model.Attachments?.Any() == true)
+            @if (Model.Request.HasSupportingDocuments && Model.Request.Attachments?.Any() == true)
             {
                 <div class="card border-0 shadow-sm mb-4">
                     <div class="card-header bg-white border-bottom py-3">
@@ -133,7 +133,7 @@
                     </div>
                     <div class="card-body p-4">
                         <div class="list-group list-group-flush">
-                            @foreach (var attachment in Model.Attachments)
+                            @foreach (var attachment in Model.Request.Attachments)
                             {
                                 <div class="list-group-item border-0 px-0 py-2">
                                     <div class="d-flex justify-content-between align-items-center">
@@ -170,32 +170,47 @@
                         </h5>
                     </div>
                     <div class="card-body p-4">
-                        <form id="approvalForm">
-                            @Html.AntiForgeryToken()
-                            <input type="hidden" name="RequestId" value="@Model.Id" />
-                            
-                            <div class="mb-4">
-                                <label for="comments" class="form-label">Comments</label>
-                                <textarea class="form-control" id="comments" name="Comments" rows="4" 
-                                          placeholder="Add your approval comments, conditions, or notes..."></textarea>
-                                <div class="form-text">Comments will be visible to the requester and other approvers.</div>
-                            </div>
+                        @if (Model.CanApprove)
+                        {
+                            <form id="approvalForm">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="RequestId" value="@Model.Request.Id" />
+                                
+                                <div class="mb-4">
+                                    <label for="comments" class="form-label">Comments</label>
+                                    <textarea class="form-control" id="comments" name="Comments" rows="4" 
+                                              placeholder="Add your approval comments, conditions, or notes..."></textarea>
+                                    <div class="form-text">Comments will be visible to the requester and other approvers.</div>
+                                </div>
 
-                            <div class="d-grid gap-2">
-                                <button type="button" class="btn btn-success btn-lg" onclick="approveRequest()">
-                                    <i class="fas fa-check me-2"></i>
-                                    Approve Request
-                                </button>
-                                <button type="button" class="btn btn-warning btn-lg" onclick="requestRevision()">
-                                    <i class="fas fa-edit me-2"></i>
-                                    Request Revision
-                                </button>
-                                <button type="button" class="btn btn-danger btn-lg" onclick="rejectRequest()">
-                                    <i class="fas fa-times me-2"></i>
-                                    Reject Request
-                                </button>
+                                <div class="d-grid gap-2">
+                                    <button type="button" class="btn btn-success btn-lg" onclick="approveRequest()">
+                                        <i class="fas fa-check me-2"></i>
+                                        Approve Request
+                                    </button>
+                                    <button type="button" class="btn btn-warning btn-lg" onclick="requestRevision()">
+                                        <i class="fas fa-edit me-2"></i>
+                                        Request Revision
+                                    </button>
+                                    <button type="button" class="btn btn-danger btn-lg" onclick="rejectRequest()">
+                                        <i class="fas fa-times me-2"></i>
+                                        Reject Request
+                                    </button>
+                                </div>
+                            </form>
+                        }
+                        else
+                        {
+                            <div class="text-center">
+                                <div class="alert alert-info border-0 bg-info bg-opacity-10">
+                                    <i class="fas fa-info-circle me-2"></i>
+                                    You do not have permission to approve this request.
+                                </div>
+                                <p class="text-muted mb-0">
+                                    This request is assigned to: <strong>@Model.Request.ApprovalEmail</strong>
+                                </p>
                             </div>
-                        </form>
+                        }
                     </div>
                 </div>
 
@@ -214,10 +229,10 @@
                                 <div class="timeline-content">
                                     <h6 class="timeline-title">Request Submitted</h6>
                                     <p class="timeline-text text-muted mb-1">
-                                        By @Model.SubmittedBy
+                                        By @Model.Request.SubmittedBy
                                     </p>
                                     <small class="text-muted">
-                                        @Model.SubmittedDate?.ToString("MMM dd, yyyy 'at' hh:mm tt")
+                                        @Model.Request.SubmittedDate?.ToString("MMM dd, yyyy 'at' hh:mm tt")
                                     </small>
                                 </div>
                             </div>
@@ -241,13 +256,13 @@
                             var riskClass = "success";
                             var riskIcon = "fa-check-circle";
                             
-                            if (Model.GLProposedLimit > 5000000)
+                            if (Model.Request.GLProposedLimit > 5000000)
                             {
                                 riskLevel = "High";
                                 riskClass = "danger";
                                 riskIcon = "fa-exclamation-triangle";
                             }
-                            else if (Model.GLProposedLimit > 1000000)
+                            else if (Model.Request.GLProposedLimit > 1000000)
                             {
                                 riskLevel = "Medium";
                                 riskClass = "warning";
@@ -272,14 +287,14 @@
                             </div>
                             <div class="d-flex justify-content-between align-items-center mb-2">
                                 <span>Documentation:</span>
-                                <span class="badge bg-@(Model.HasSupportingDocuments ? "success" : "warning") bg-opacity-10 text-@(Model.HasSupportingDocuments ? "success" : "warning")">
-                                    @(Model.HasSupportingDocuments ? "Complete" : "Incomplete")
+                                <span class="badge bg-@(Model.Request.HasSupportingDocuments ? "success" : "warning") bg-opacity-10 text-@(Model.Request.HasSupportingDocuments ? "success" : "warning")">
+                                    @(Model.Request.HasSupportingDocuments ? "Complete" : "Incomplete")
                                 </span>
                             </div>
                             <div class="d-flex justify-content-between align-items-center">
                                 <span>Description:</span>
-                                <span class="badge bg-@(string.IsNullOrEmpty(Model.BriefDescription) ? "warning" : "success") bg-opacity-10 text-@(string.IsNullOrEmpty(Model.BriefDescription) ? "warning" : "success")">
-                                    @(string.IsNullOrEmpty(Model.BriefDescription) ? "Missing" : "Provided")
+                                <span class="badge bg-@(string.IsNullOrEmpty(Model.Request.BriefDescription) ? "warning" : "success") bg-opacity-10 text-@(string.IsNullOrEmpty(Model.Request.BriefDescription) ? "warning" : "success")">
+                                    @(string.IsNullOrEmpty(Model.Request.BriefDescription) ? "Missing" : "Provided")
                                 </span>
                             </div>
                         </div>

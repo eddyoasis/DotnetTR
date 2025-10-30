@@ -268,6 +268,9 @@
             
             // Form validation
             $('#multiApprovalForm').on('submit', function(e) {
+                // Clear any previous alerts
+                $('.validation-alert').remove();
+                
                 const emails = $('.approver-step input[name*="Email"]').map(function() {
                     return $(this).val().trim();
                 }).get();
@@ -276,20 +279,37 @@
                 
                 if (validEmails.length === 0) {
                     e.preventDefault();
-                    toastr.error('Please add at least one approver with a valid email address.');
+                    showValidationAlert('Please add at least one approver with a valid email address.', 'danger');
                     return false;
                 }
                 
-                // Check for duplicate emails
-                const duplicates = validEmails.filter((email, index) => validEmails.indexOf(email) !== index);
-                if (duplicates.length > 0) {
-                    e.preventDefault();
-                    toastr.error('Duplicate email addresses are not allowed: ' + duplicates.join(', '));
-                    return false;
-                }
+                // // Check for duplicate emails
+                // const duplicates = validEmails.filter((email, index) => validEmails.indexOf(email) !== index);
+                // if (duplicates.length > 0) {
+                //     e.preventDefault();
+                //     showValidationAlert('Duplicate email addresses are not allowed: ' + duplicates.join(', '), 'danger');
+                //     return false;
+                // }
                 
                 return confirm('Are you sure you want to submit this request with the configured approval workflow?');
             });
+            
+            // Function to show validation alerts
+            function showValidationAlert(message, type) {
+                const alertHtml = `
+                    <div class="alert alert-${type} alert-dismissible fade show validation-alert" role="alert">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        ${message}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                `;
+                $('#multiApprovalForm').prepend(alertHtml);
+                
+                // Scroll to top to show the alert
+                $('html, body').animate({
+                    scrollTop: $('#multiApprovalForm').offset().top - 20
+                }, 500);
+            }
             
             function createApproverStep(index) {
                 return `
