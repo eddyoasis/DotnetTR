@@ -8,5 +8,7 @@ namespace TradingLimitMVC.Models
         public string Role { get; set; } = string.Empty;
         public string Department { get; set; } = string.Empty;
         public string PhoneNumber { get; set; } = string.Empty;
+        public int? GroupId { get; set; }
+        public string? GroupName { get; set; }
     }
 }

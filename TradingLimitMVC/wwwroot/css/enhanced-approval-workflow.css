@@ -1,0 +1,261 @@
+/* Enhanced Approval Workflow Styles */
+
+.enhanced-workflow-container {
+    background: #f8f9fa;
+    border-radius: 10px;
+    padding: 20px;
+    margin: 20px 0;
+}
+
+.workflow-template-selector {
+    background: white;
+    padding: 15px;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    margin-bottom: 20px;
+}
+
+.workflow-template-selector h5 {
+    color: #495057;
+    margin-bottom: 15px;
+}
+
+.workflow-progress {
+    background: white;
+    padding: 15px;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.approval-step-card {
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    transition: all 0.3s ease;
+    border: 2px solid #e9ecef;
+}
+
+.approval-step-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+}
+
+.approval-step-card.border-warning {
+    border-color: #ffc107 !important;
+    background: linear-gradient(135deg, #fff8e1 0%, #ffffff 100%);
+}
+
+.approval-step-card.border-success {
+    border-color: #28a745 !important;
+    background: linear-gradient(135deg, #f1f8e9 0%, #ffffff 100%);
+}
+
+.approval-step-card .card-header {
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    border-bottom: 1px solid #dee2e6;
+    font-weight: 600;
+}
+
+.approver-item {
+    padding: 10px;
+    margin: 5px 0;
+    background: #f8f9fa;
+    border-radius: 6px;
+    border-left: 4px solid #007bff;
+    transition: all 0.2s ease;
+}
+
+.approver-item:hover {
+    background: #e9ecef;
+    border-left-color: #0056b3;
+}
+
+.step-progress .progress-sm {
+    height: 4px;
+}
+
+.step-details p {
+    margin-bottom: 8px;
+    font-size: 0.9rem;
+}
+
+.workflow-actions {
+    background: white;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    text-align: center;
+}
+
+.workflow-actions .btn {
+    margin: 0 5px;
+    min-width: 150px;
+}
+
+/* Step Status Indicators */
+.approval-step-card .fas.fa-check-circle {
+    color: #28a745 !important;
+    font-size: 1.2em;
+}
+
+.approval-step-card .fas.fa-clock {
+    color: #ffc107 !important;
+    font-size: 1.2em;
+}
+
+.approval-step-card .fas.fa-circle {
+    color: #6c757d !important;
+    font-size: 1.2em;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .enhanced-workflow-container {
+        padding: 15px;
+    }
+    
+    .workflow-template-selector .btn-group {
+        flex-direction: column;
+        width: 100%;
+    }
+    
+    .workflow-template-selector .btn-group .btn {
+        border-radius: 0.375rem !important;
+        margin: 2px 0;
+    }
+    
+    .approval-step-card .row {
+        flex-direction: column;
+    }
+    
+    .workflow-actions .btn {
+        min-width: 120px;
+        margin: 5px 2px;
+    }
+}
+
+/* Animation Effects */
+.approval-step-card {
+    animation: slideInUp 0.3s ease-out;
+}
+
+@keyframes slideInUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Progress Bar Enhancements */
+.progress {
+    height: 8px;
+    border-radius: 4px;
+    background-color: #e9ecef;
+}
+
+.progress-bar {
+    background: linear-gradient(90deg, #007bff, #0056b3);
+    border-radius: 4px;
+    transition: width 0.6s ease;
+}
+
+.step-progress .progress {
+    height: 4px;
+}
+
+/* Badge Enhancements */
+.badge {
+    font-size: 0.75em;
+    padding: 0.5em 0.75em;
+}
+
+.badge.bg-primary {
+    background: linear-gradient(135deg, #007bff, #0056b3) !important;
+}
+
+.badge.bg-success {
+    background: linear-gradient(135deg, #28a745, #20c997) !important;
+}
+
+.badge.bg-warning {
+    background: linear-gradient(135deg, #ffc107, #e0a800) !important;
+}
+
+.badge.bg-danger {
+    background: linear-gradient(135deg, #dc3545, #c82333) !important;
+}
+
+/* Loading State */
+.workflow-loading {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 200px;
+    background: #f8f9fa;
+    border-radius: 10px;
+}
+
+.spinner-border {
+    width: 2rem;
+    height: 2rem;
+}
+
+/* Alert Enhancements */
+.alert {
+    border-radius: 8px;
+    border: none;
+}
+
+.alert-info {
+    background: linear-gradient(135deg, #d1ecf1, #bee5eb);
+    color: #0c5460;
+}
+
+.alert-warning {
+    background: linear-gradient(135deg, #fff3cd, #ffeeba);
+    color: #856404;
+}
+
+/* Card Enhancements */
+.card {
+    border: none;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.card-header {
+    background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+    border-bottom: 1px solid #dee2e6;
+}
+
+/* Button Group Enhancements */
+.btn-group .btn {
+    transition: all 0.2s ease;
+}
+
+.btn-group .btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+/* Template-specific styles */
+.workflow-template-simple {
+    border-left: 4px solid #28a745;
+}
+
+.workflow-template-standard {
+    border-left: 4px solid #007bff;
+}
+
+.workflow-template-complex {
+    border-left: 4px solid #dc3545;
+}
+
+.workflow-template-parallel {
+    border-left: 4px solid #ffc107;
+}
+
+.workflow-template-amount-based {
+    border-left: 4px solid #17a2b8;
+}

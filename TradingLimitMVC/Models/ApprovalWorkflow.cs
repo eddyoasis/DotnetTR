@@ -90,6 +90,13 @@ namespace TradingLimitMVC.Models
         [MaxLength(100)]
         public string? ApproverRole { get; set; }
 
+        [Display(Name = "Approval Group")]
+        public int? ApprovalGroupId { get; set; }
+
+        [Display(Name = "Approval Group Name")]
+        [MaxLength(100)]
+        public string? ApprovalGroupName { get; set; }
+
         [Display(Name = "Step Status")]
         [MaxLength(50)]
         public string Status { get; set; } = "Pending"; // Pending, InProgress, Approved, Rejected, Skipped, OnHold

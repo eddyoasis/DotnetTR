@@ -440,6 +440,29 @@
     .badge {
         font-size: 0.75rem;
     }
+
+    /* Group Badge Styles */
+    .group-badge-iwm {
+        background: linear-gradient(135deg, #17a2b8, #138496) !important;
+        color: white !important;
+    }
+
+    .group-badge-gsps {
+        background: linear-gradient(135deg, #ffc107, #e0a800) !important;
+        color: #212529 !important;
+    }
+
+    .group-badge-risk {
+        background: linear-gradient(135deg, #dc3545, #c82333) !important;
+        color: white !important;
+    }
+
+    /* Timeline Group Badge Enhancements */
+    .timeline-group-badge {
+        font-size: 0.65rem;
+        padding: 2px 6px;
+        border-radius: 3px;
+    }
 </style>
 
 <div class="page-wrapper">
@@ -655,9 +678,25 @@
                                                     {
                                                         <small class="text-muted">(@step.ApproverRole)</small>
                                                     }
+                                                    @if (!string.IsNullOrEmpty(step.ApprovalGroupName))
+                                                    {
+                                                        var timelineGroupBadgeClass = step.ApprovalGroupId switch {
+                                                            1 => "bg-info bg-opacity-20 text-info",        // IWM
+                                                            2 => "bg-warning bg-opacity-20 text-warning",  // GSPS  
+                                                            3 => "bg-danger bg-opacity-20 text-danger",    // Risk
+                                                            _ => "bg-secondary bg-opacity-20 text-secondary"
+                                                        };
+                                                        <span class="badge @timelineGroupBadgeClass ms-2" style="font-size: 0.7rem;">@step.ApprovalGroupName</span>
+                                                    }
                                                 </h6>
                                                 <p class="timeline-text text-muted mb-1">
                                                     @step.ApproverEmail
+                                                    @if (step.ApprovalGroupId.HasValue)
+                                                    {
+                                                        <small class="text-muted ms-2">
+                                                            <i class="fas fa-users me-1"></i>Group ID: @step.ApprovalGroupId
+                                                        </small>
+                                                    }
                                                 </p>
                                             </div>
                                             <span class="badge timeline-status-badge timeline-status-@stepStatus.ToLower().Replace(" ", "-")">
@@ -899,6 +938,16 @@
                                                                         <div class="flex-grow-1">
                                                                             <div class="d-flex align-items-center mb-2">
                                                                                 <span class="badge bg-primary me-2">Step @(approverIndex + 1)</span>
+                                                                                @if (approver.GroupId.HasValue)
+                                                                                {
+                                                                                    var groupBadgeClass = approver.GroupId switch {
+                                                                                        1 => "bg-info",        // IWM
+                                                                                        2 => "bg-warning",     // GSPS  
+                                                                                        3 => "bg-danger",      // Risk
+                                                                                        _ => "bg-secondary"
+                                                                                    };
+                                                                                    <span class="badge @groupBadgeClass me-2">@approver.GroupName</span>
+                                                                                }
                                                                                 <h6 class="card-title mb-0 text-primary">
                                                                                     @approver.Name
                                                                                 </h6>
@@ -910,6 +959,12 @@
                                                                                 <small class="text-muted">
                                                                                     <i class="fas fa-building me-1"></i>@approver.Department
                                                                                 </small><br>
+                                                                                @if (approver.GroupId.HasValue)
+                                                                                {
+                                                                                    <small class="text-muted">
+                                                                                        <i class="fas fa-users me-1"></i>Group: @approver.GroupName (ID: @approver.GroupId)
+                                                                                    </small><br>
+                                                                                }
                                                                                 <small class="text-muted">
                                                                                     <i class="fas fa-envelope me-1"></i>@approver.Email
                                                                                 </small>
@@ -926,6 +981,8 @@
                                                                     <input type="hidden" name="ApprovalSteps[@approverIndex].Email" value="@approver.Email" />
                                                                     <input type="hidden" name="ApprovalSteps[@approverIndex].Name" value="@approver.Name" />
                                                                     <input type="hidden" name="ApprovalSteps[@approverIndex].Role" value="@approver.Role" />
+                                                                    <input type="hidden" name="ApprovalSteps[@approverIndex].ApprovalGroupId" value="@approver.GroupId" />
+                                                                    <input type="hidden" name="ApprovalSteps[@approverIndex].ApprovalGroupName" value="@approver.GroupName" />
                                                                     <input type="hidden" name="ApprovalSteps[@approverIndex].StepNumber" value="@(approverIndex + 1)" />
                                                                     <input type="hidden" name="ApprovalSteps[@approverIndex].IsRequired" value="true" />
                                                                 </div>
@@ -949,13 +1006,20 @@
                                         <div class="d-flex align-items-start">
                                             <i class="fas fa-info-circle text-info me-2 mt-1"></i>
                                             <div>
-                                                <strong>Approval Process Information:</strong>
+                                                <strong>Smart Group-Based Approval Process:</strong>
                                                 <ul class="mb-0 mt-2">
-                                                    <li><strong>Auto-Assignment:</strong> All designated approvers from the system will be included</li>
-                                                    <li><strong>Sequential:</strong> Approvers will receive notifications in the order displayed</li>
-                                                    <li><strong>Parallel:</strong> All approvers receive notifications simultaneously</li>
-                                                    <li><strong>Required Approval:</strong> All listed approvers must approve for the request to proceed</li>
+                                                    <li><strong>Auto-Assignment:</strong> All designated approvers from the system will be included with their group information</li>
+                                                    <li><strong>Group Intelligence:</strong> System automatically groups approvers (IWM, GSPS, Risk) and prevents duplicate approvals from the same group</li>
+                                                    <li><strong>Sequential:</strong> Approvers will receive notifications in the order displayed, but same group members are automatically skipped if group already approved</li>
+                                                    <li><strong>Parallel:</strong> All approvers receive notifications simultaneously, with smart group checking to prevent redundant approvals</li>
+                                                    <li><strong>Efficient Processing:</strong> Once someone from a group approves, other members from the same group are automatically skipped to the next step</li>
                                                 </ul>
+                                                <div class="mt-3">
+                                                    <strong>Group Color Codes:</strong>
+                                                    <span class="badge bg-info ms-2">IWM</span>
+                                                    <span class="badge bg-warning ms-2">GSPS</span>
+                                                    <span class="badge bg-danger ms-2">Risk</span>
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
@@ -1018,7 +1082,50 @@
                     return false;
                 }
                 
-                return confirm(`Are you sure you want to submit this request to ${validEmails.length} approver(s) in the defined step sequence?`);
+                // Collect group information for confirmation
+                const groupInfo = [];
+                $('input[name*="ApprovalGroupName"][type="hidden"]').each(function(index) {
+                    const groupName = $(this).val();
+                    const groupId = $(`input[name*="ApprovalGroupId"][type="hidden"]`).eq(index).val();
+                    const approverName = $(`input[name*="Name"][type="hidden"]`).eq(index).val();
+                    const approverEmail = $(`input[name*="Email"][type="hidden"]`).eq(index).val();
+                    
+                    if (groupName && groupId && approverEmail) {
+                        groupInfo.push({
+                            groupName: groupName,
+                            groupId: groupId,
+                            approverName: approverName,
+                            approverEmail: approverEmail
+                        });
+                    }
+                });
+                
+                // Group approvers by group for better display
+                const groupedApprovers = groupInfo.reduce((acc, curr) => {
+                    if (!acc[curr.groupName]) {
+                        acc[curr.groupName] = [];
+                    }
+                    acc[curr.groupName].push(curr);
+                    return acc;
+                }, {});
+                
+                // Create confirmation message with group information
+                let confirmMessage = `Are you sure you want to submit this request with smart group-based approval?\n\n`;
+                confirmMessage += `Total Approvers: ${validEmails.length}\n`;
+                confirmMessage += `Groups Involved: ${Object.keys(groupedApprovers).length}\n\n`;
+                
+                Object.keys(groupedApprovers).forEach(groupName => {
+                    const approvers = groupedApprovers[groupName];
+                    confirmMessage += `${groupName} Group (${approvers.length} approver${approvers.length > 1 ? 's' : ''}):\n`;
+                    approvers.forEach(approver => {
+                        confirmMessage += `  • ${approver.approverName} (${approver.approverEmail})\n`;
+                    });
+                    confirmMessage += `\n`;
+                });
+                
+                confirmMessage += `Note: Smart group logic will prevent duplicate approvals from the same group.`;
+                
+                return confirm(confirmMessage);
             });
             
             // Function to show validation alerts

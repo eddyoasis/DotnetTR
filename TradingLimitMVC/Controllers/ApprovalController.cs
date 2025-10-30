@@ -161,6 +161,21 @@ namespace TradingLimitMVC.Controllers
                 // Handle multi-approval workflow vs single approval workflow
                 if (request.ApprovalWorkflow != null)
                 {
+                    // Check if user's group has already approved this step
+                    var currentUserGroupId = await GetUserGroupIdAsync(currentUser);
+                    var currentStepNumber = request.ApprovalWorkflow.CurrentStep;
+                    
+                    // Check if someone from the same group has already approved the current step
+                    var groupAlreadyApproved = await CheckGroupApprovalStatusAsync(request.Id, currentStepNumber, currentUserGroupId);
+                    
+                    if (groupAlreadyApproved)
+                    {
+                        TempData["InfoMessage"] = $"Your group has already provided approval for step {currentStepNumber}. The workflow will continue to the next step.";
+                        _logger.LogInformation("User {User} from group {GroupId} attempted to approve step {StepNumber} but group already approved", 
+                            currentUser, currentUserGroupId, currentStepNumber);
+                        return RedirectToAction("Details", new { id = model.RequestId });
+                    }
+
                     // Multi-approval workflow: Find the next approvable step for this user
                     var approvableSteps = request.ApprovalWorkflow.ApprovalSteps
                         .Where(s => s.ApproverEmail.Equals(currentUser, StringComparison.OrdinalIgnoreCase))
@@ -177,6 +192,21 @@ namespace TradingLimitMVC.Controllers
                     {
                         // Approve the first available step (lowest step number)
                         var stepToApprove = approvableSteps.First();
+                        
+                        // Update approval group information if not already set
+                        if (!stepToApprove.ApprovalGroupId.HasValue)
+                        {
+                            stepToApprove.ApprovalGroupId = currentUserGroupId;
+                            
+                            // Get group name from GroupSetting
+                            if (currentUserGroupId.HasValue)
+                            {
+                                var groupSetting = await _context.GroupSettings
+                                    .FirstOrDefaultAsync(gs => gs.GroupID == currentUserGroupId.Value);
+                                stepToApprove.ApprovalGroupName = groupSetting?.GroupName ?? "Unknown Group";
+                            }
+                        }
+                        
                         var success = await _approvalWorkflowService.ProcessApprovalStepAsync(stepToApprove.Id, currentUser, "Approved", model.Comments);
                         if (!success)
                         {
@@ -184,9 +214,12 @@ namespace TradingLimitMVC.Controllers
                             return RedirectToAction("Details", new { id = model.RequestId });
                         }
                         
+                        // After processing approval, check if we can advance to next step
+                        await CheckAndAdvanceWorkflowAsync(request.Id, stepToApprove.StepNumber);
+                        
                         // Log which step was approved for debugging
-                        _logger.LogInformation("User {User} approved step {StepNumber} of request {RequestId}", 
-                            currentUser, stepToApprove.StepNumber, request.RequestId);
+                        _logger.LogInformation("User {User} (Group: {GroupId}) approved step {StepNumber} of request {RequestId}", 
+                            currentUser, currentUserGroupId, stepToApprove.StepNumber, request.RequestId);
                     }
                     else
                     {
@@ -454,7 +487,308 @@ namespace TradingLimitMVC.Controllers
 
         #region Helper Methods
 
+        // Get user's group ID from GroupSetting table
+        private async Task<int?> GetUserGroupIdAsync(string userEmail)
+        {
+            try
+            {
+                var groupSetting = await _context.GroupSettings
+                    .Where(gs => gs.Email.Equals(userEmail, StringComparison.OrdinalIgnoreCase) && 
+                                (gs.TypeID == 1 || gs.TypeID == 2)) // Approver or Endorser
+                    .FirstOrDefaultAsync();
+                
+                return groupSetting?.GroupID;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting group ID for user {UserEmail}", userEmail);
+                return null;
+            }
+        }
 
+        // Check if someone from the same group has already approved the current step
+        private async Task<bool> CheckGroupApprovalStatusAsync(int requestId, int stepNumber, int? groupId)
+        {
+            if (!groupId.HasValue)
+            {
+                return false;
+            }
+
+            try
+            {
+                // Enhanced: Use ApprovalGroupId field for more efficient checking
+                var groupAlreadyApproved = await _context.ApprovalSteps
+                    .AnyAsync(s => s.ApprovalWorkflow.TradingLimitRequestId == requestId && 
+                                  s.StepNumber == stepNumber &&
+                                  s.Status == "Approved" &&
+                                  s.ApprovalGroupId == groupId);
+
+                if (groupAlreadyApproved)
+                {
+                    _logger.LogInformation("Group {GroupId} already approved step {StepNumber} for request {RequestId}", 
+                        groupId, stepNumber, requestId);
+                    return true;
+                }
+
+                // Fallback: Check by email lookup if ApprovalGroupId is not set (for legacy data)
+                var currentStepApprovals = await _context.ApprovalSteps
+                    .Where(s => s.ApprovalWorkflow.TradingLimitRequestId == requestId && 
+                               s.StepNumber == stepNumber &&
+                               s.Status == "Approved" &&
+                               s.ApprovalGroupId == null) // Only check legacy data without group ID
+                    .ToListAsync();
+
+                foreach (var approval in currentStepApprovals)
+                {
+                    var approverGroupId = await GetUserGroupIdAsync(approval.ApproverEmail);
+                    if (approverGroupId == groupId)
+                    {
+                        _logger.LogInformation("Group {GroupId} already approved step {StepNumber} for request {RequestId} (legacy check)", 
+                            groupId, stepNumber, requestId);
+                        return true;
+                    }
+                }
+
+                return false;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error checking group approval status for request {RequestId}, step {StepNumber}, group {GroupId}", 
+                    requestId, stepNumber, groupId);
+                return false;
+            }
+        }
+
+        // Check if workflow can advance to next step after an approval
+        private async Task CheckAndAdvanceWorkflowAsync(int requestId, int currentStepNumber)
+        {
+            try
+            {
+                var workflow = await _context.ApprovalWorkflows
+                    .Include(w => w.ApprovalSteps)
+                    .FirstOrDefaultAsync(w => w.TradingLimitRequestId == requestId);
+
+                if (workflow == null)
+                {
+                    return;
+                }
+
+                // Get all steps for the current step number
+                var currentStepApprovals = workflow.ApprovalSteps
+                    .Where(s => s.StepNumber == currentStepNumber)
+                    .ToList();
+
+                // Check if step requirements are met based on approval type
+                bool stepComplete = await IsStepCompleteAsync(currentStepApprovals, currentStepNumber);
+
+                if (stepComplete)
+                {
+                    // Mark all pending steps in current step as skipped (since group requirement is met)
+                    foreach (var step in currentStepApprovals.Where(s => s.Status == "Pending" || s.Status == "InProgress"))
+                    {
+                        step.Status = "Skipped";
+                        step.Comments = "Skipped - Group requirement already met";
+                        step.ActionDate = DateTime.UtcNow;
+                    }
+
+                    // Check next step and skip if same group
+                    await CheckAndSkipSameGroupNextStepsAsync(workflow, currentStepNumber);
+                    
+                    // Activate next appropriate step
+                    await ActivateNextStepAsync(workflow, currentStepNumber);
+                    
+                    await _context.SaveChangesAsync();
+                    
+                    _logger.LogInformation("Advanced workflow for request {RequestId} from step {CurrentStep} to next step", 
+                        requestId, currentStepNumber);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error advancing workflow for request {RequestId} from step {StepNumber}", 
+                    requestId, currentStepNumber);
+            }
+        }
+
+        // Check and skip next steps if they belong to the same group that already approved
+        private async Task CheckAndSkipSameGroupNextStepsAsync(ApprovalWorkflow workflow, int currentStepNumber)
+        {
+            try
+            {
+                // Get groups that approved the current step
+                var approvedGroups = workflow.ApprovalSteps
+                    .Where(s => s.StepNumber == currentStepNumber && s.Status == "Approved")
+                    .Select(s => s.ApprovalGroupId)
+                    .Where(gid => gid.HasValue)
+                    .ToHashSet();
+
+                if (!approvedGroups.Any())
+                {
+                    return; // No group information available
+                }
+
+                var nextStepNumber = currentStepNumber + 1;
+                var maxSteps = workflow.ApprovalSteps.Max(s => s.StepNumber);
+
+                // Keep checking subsequent steps for same group members
+                while (nextStepNumber <= maxSteps)
+                {
+                    var nextSteps = workflow.ApprovalSteps
+                        .Where(s => s.StepNumber == nextStepNumber)
+                        .ToList();
+
+                    if (!nextSteps.Any())
+                    {
+                        break;
+                    }
+
+                    // Check if all next steps belong to groups that already approved
+                    bool allNextStepsFromApprovedGroups = nextSteps.All(step => 
+                        step.ApprovalGroupId.HasValue && 
+                        approvedGroups.Contains(step.ApprovalGroupId.Value));
+
+                    if (allNextStepsFromApprovedGroups)
+                    {
+                        // Skip all steps in this step number since same group already approved
+                        foreach (var step in nextSteps.Where(s => s.Status == "Pending" || s.Status == "InProgress"))
+                        {
+                            step.Status = "Skipped";
+                            step.Comments = $"Skipped - Group {step.ApprovalGroupName} already approved in step {currentStepNumber}";
+                            step.ActionDate = DateTime.UtcNow;
+                        }
+
+                        _logger.LogInformation("Skipped step {StepNumber} for workflow {WorkflowId} - same groups already approved", 
+                            nextStepNumber, workflow.Id);
+
+                        nextStepNumber++;
+                    }
+                    else
+                    {
+                        // Found steps with different groups, stop skipping
+                        break;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error checking and skipping same group steps for workflow {WorkflowId}", workflow.Id);
+            }
+        }
+
+        // Check if a step is complete based on group-based approval logic
+        private async Task<bool> IsStepCompleteAsync(List<ApprovalStep> currentStepApprovals, int stepNumber)
+        {
+            try
+            {
+                // Enhanced: Use ApprovalGroupId field for more efficient checking
+                var approvedGroups = currentStepApprovals
+                    .Where(a => a.Status == "Approved" && a.ApprovalGroupId.HasValue)
+                    .Select(a => a.ApprovalGroupId!.Value)
+                    .ToHashSet();
+
+                var requiredGroups = currentStepApprovals
+                    .Where(s => s.ApprovalGroupId.HasValue)
+                    .Select(s => s.ApprovalGroupId!.Value)
+                    .ToHashSet();
+
+                // Fallback for legacy data without ApprovalGroupId
+                if (!approvedGroups.Any() || !requiredGroups.Any())
+                {
+                    var legacyApprovedGroups = new HashSet<int?>();
+                    var legacyRequiredGroups = new HashSet<int?>();
+                    
+                    foreach (var approval in currentStepApprovals.Where(a => a.Status == "Approved"))
+                    {
+                        var approverGroupId = await GetUserGroupIdAsync(approval.ApproverEmail);
+                        if (approverGroupId.HasValue)
+                        {
+                            legacyApprovedGroups.Add(approverGroupId);
+                        }
+                    }
+
+                    foreach (var step in currentStepApprovals)
+                    {
+                        var groupId = await GetUserGroupIdAsync(step.ApproverEmail);
+                        if (groupId.HasValue)
+                        {
+                            legacyRequiredGroups.Add(groupId);
+                        }
+                    }
+
+                    // Convert to int HashSet for consistency
+                    approvedGroups = legacyApprovedGroups.Where(g => g.HasValue).Select(g => g!.Value).ToHashSet();
+                    requiredGroups = legacyRequiredGroups.Where(g => g.HasValue).Select(g => g!.Value).ToHashSet();
+                }
+
+                // Step is complete if we have at least one approval from any group
+                // Option 1: Any one group approval completes the step (ParallelAnyOne)
+                bool anyGroupApproved = approvedGroups.Count > 0;
+                
+                // Option 2: All groups must approve (ParallelAll) - uncomment if needed
+                // bool allGroupsApproved = approvedGroups.Count == requiredGroups.Count;
+
+                _logger.LogInformation("Step {StepNumber} status: Required groups: {RequiredCount}, Approved groups: {ApprovedCount}", 
+                    stepNumber, requiredGroups.Count, approvedGroups.Count);
+
+                return anyGroupApproved; // Change to allGroupsApproved if you need all groups to approve
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error checking if step {StepNumber} is complete", stepNumber);
+                return false;
+            }
+        }
+
+        // Activate the next step in the workflow
+        private async Task ActivateNextStepAsync(ApprovalWorkflow workflow, int currentStepNumber)
+        {
+            try
+            {
+                var nextStepNumber = currentStepNumber + 1;
+                var nextSteps = workflow.ApprovalSteps
+                    .Where(s => s.StepNumber == nextStepNumber)
+                    .ToList();
+
+                if (nextSteps.Any())
+                {
+                    // Activate all steps in the next step number by updating their status
+                    foreach (var step in nextSteps)
+                    {
+                        if (step.Status == "Pending")
+                        {
+                            step.Status = "InProgress";
+                        }
+                    }
+
+                    // Update workflow current step
+                    workflow.CurrentStep = nextStepNumber;
+                    
+                    _logger.LogInformation("Activated step {NextStepNumber} for workflow {WorkflowId}", 
+                        nextStepNumber, workflow.Id);
+                }
+                else
+                {
+                    // No more steps - workflow is complete
+                    workflow.Status = "Approved";
+                    workflow.CompletedDate = DateTime.UtcNow;
+                    
+                    // Update the main request status
+                    var request = await _context.TradingLimitRequests.FindAsync(workflow.TradingLimitRequestId);
+                    if (request != null)
+                    {
+                        request.Status = "Approved";
+                        request.ModifiedDate = DateTime.UtcNow;
+                    }
+                    
+                    _logger.LogInformation("Workflow {WorkflowId} completed - all steps approved", workflow.Id);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error activating next step after step {CurrentStepNumber} in workflow {WorkflowId}", 
+                    currentStepNumber, workflow.Id);
+            }
+        }
 
         private async Task<bool> CanUserApproveRequestAsync(string userEmail, TradingLimitRequest request)
         {
@@ -872,6 +1206,52 @@ namespace TradingLimitMVC.Controllers
             catch (Exception ex)
             {
                 return Json(new { error = ex.Message });
+            }
+        }
+
+        // Helper method to populate ApprovalGroupId for existing approval steps
+        public async Task<IActionResult> PopulateApprovalGroups()
+        {
+            try
+            {
+                var stepsWithoutGroups = await _context.ApprovalSteps
+                    .Where(s => s.ApprovalGroupId == null)
+                    .ToListAsync();
+
+                int updatedCount = 0;
+
+                foreach (var step in stepsWithoutGroups)
+                {
+                    var groupId = await GetUserGroupIdAsync(step.ApproverEmail);
+                    if (groupId.HasValue)
+                    {
+                        step.ApprovalGroupId = groupId;
+                        
+                        var groupSetting = await _context.GroupSettings
+                            .FirstOrDefaultAsync(gs => gs.GroupID == groupId.Value);
+                        step.ApprovalGroupName = groupSetting?.GroupName ?? $"Group {groupId}";
+                        
+                        updatedCount++;
+                    }
+                }
+
+                if (updatedCount > 0)
+                {
+                    await _context.SaveChangesAsync();
+                    _logger.LogInformation("Updated {Count} approval steps with group information", updatedCount);
+                }
+
+                return Json(new { 
+                    success = true, 
+                    message = $"Updated {updatedCount} approval steps with group information",
+                    totalStepsProcessed = stepsWithoutGroups.Count,
+                    updatedSteps = updatedCount
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error populating approval groups");
+                return Json(new { success = false, message = "Error updating approval groups: " + ex.Message });
             }
         }
 

@@ -33,6 +33,13 @@ namespace TradingLimitMVC.Models.ViewModels
         [MaxLength(100)]
         public string? Role { get; set; }
         
+        [Display(Name = "Approval Group ID")]
+        public int? ApprovalGroupId { get; set; }
+        
+        [Display(Name = "Approval Group Name")]
+        [MaxLength(100)]
+        public string? ApprovalGroupName { get; set; }
+        
         [Display(Name = "Required")]
         public bool IsRequired { get; set; } = true;
         

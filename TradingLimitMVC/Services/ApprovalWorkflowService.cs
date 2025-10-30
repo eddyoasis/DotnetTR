@@ -48,6 +48,12 @@ namespace TradingLimitMVC.Services
                 for (int i = 0; i < approvers.Count; i++)
                 {
                     var approver = approvers[i];
+
+                    // Get group information from GroupSetting
+                    var groupSetting = await _context.GroupSettings
+                        .FirstOrDefaultAsync(gs => gs.Email.ToLower() == approver.Email.ToLower() &&
+                            (gs.TypeID == 1 || gs.TypeID == 2)); // Approver or Endorser
+                    
                     var step = new ApprovalStep
                     {
                         ApprovalWorkflowId = workflow.Id,
@@ -55,6 +61,8 @@ namespace TradingLimitMVC.Services
                         ApproverEmail = approver.Email,
                         ApproverName = approver.Name,
                         ApproverRole = approver.Role,
+                        ApprovalGroupId = approver.ApprovalGroupId ?? groupSetting?.GroupID,
+                        ApprovalGroupName = approver.ApprovalGroupName ?? groupSetting?.GroupName,
                         Status = workflowType == "Sequential" && i > 0 ? "Pending" : "InProgress",
                         IsRequired = approver.IsRequired,
                         DueDate = approver.DueDate,
@@ -343,6 +351,8 @@ namespace TradingLimitMVC.Services
         public string Email { get; set; } = string.Empty;
         public string? Name { get; set; }
         public string? Role { get; set; }
+        public int? ApprovalGroupId { get; set; }
+        public string? ApprovalGroupName { get; set; }
         public bool IsRequired { get; set; } = true;
         public DateTime? DueDate { get; set; }
         public decimal? MinimumAmountThreshold { get; set; }
