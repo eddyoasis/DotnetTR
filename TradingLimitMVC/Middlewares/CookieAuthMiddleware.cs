@@ -157,6 +157,7 @@ namespace TradingLimitMVC.Middlewares
                 if (hasReturnUrl)
                 {
                     // Allow the request to proceed to login page with return URL
+                    await next(context);
                     return;
                 }
 

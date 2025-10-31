@@ -235,7 +235,7 @@ namespace TradingLimitMVC.Services
                 var approverEmail = approvalStep.ApproverEmail;
                 var observerEmails = await _context.GroupSettings.Where(x => x.GroupID == approvalStep.ApprovalGroupId && x.TypeID == 3).Select(x=>x.Email).ToListAsync();
 
-                await SendEmail(request, approverEmail, observerEmails);
+                await _emailService.SendApprovalEmail(request, approverEmail, observerEmails);
 
                 _logger.LogInformation("Trading limit request with ID {Id} submitted with multi-approval workflow by {SubmittedBy}", id, submittedBy);
                 return true;
@@ -345,51 +345,6 @@ namespace TradingLimitMVC.Services
                 throw;
             }
         }
-
-        private async Task SendEmail(TradingLimitRequest req, string approverEmail, List<string> EmailCCs)
-        {
-            var generalAppSetting = _generalAppSetting.Value;
-            var domainHost = generalAppSetting.Host;
-
-            var recipientsTo = new List<string> { approverEmail };
-            var recipientsCC = EmailCCs;
-            var subject = $"TEST [PENDING SG IT] PR: {req.RequestId}";
-            var body = $@"
-                <p>Please refer to the purchase requisition below for your approval.<br/>
-                Awaiting your action.</p>
-                <p>
-                    <strong>Requested by:</strong> {req.GLProposedLimit}<br/>
-                </p>";
-
-
-            await _emailService.SendEmailAsync(recipientsTo, recipientsCC, subject, body);
-        }
-
-        //private async Task SendEmail(TradingLimitRequest req, string approverEmail)
-        //{
-        //    var generalAppSetting = _generalAppSetting.Value;
-        //    var domainHost = generalAppSetting.Host;
-
-        //    var recipientsTo = new List<string> { approverEmail };
-        //    var recipientsCC = new List<string>();
-        //    var subject = $"TEST [PENDING SG IT] PR: {req.RequestId}";
-        //    var body = $@"
-        //        <p>Please refer to the purchase requisition below for your approval.<br/>
-        //        Awaiting your action.</p>
-        //        <p><a href='{domainHost}/Login?ReturnUrl={domainHost}/Approval/ApproveStep/{pr.Id}'>Click here to approve</a></p>
-        //        <p>
-        //            <strong>Reference No:</strong> {pr.PRInternalNo}<br/>
-        //            <strong>Requested by:</strong> {pr.SubmittedBy}<br/>
-        //            <strong>Cost Centre:</strong> {string.Join(", ", costcenterNames)}<br/>
-        //            <strong>GST:</strong> {pr.QuotationCurrency} {pr.TotalAmount:N2}<br/>
-        //            <strong>Amount:</strong> {pr.QuotationCurrency} {pr.TotalAmount:N2}<br/>
-        //            <strong>Reason:</strong><br/>
-        //            {pr.Reason}
-        //        </p>";
-
-
-        //    await _emailService.SendEmailAsync(recipientsTo, recipientsCC, subject, body);
-        //}
 
         public async Task<IEnumerable<TradingLimitRequest>> GetPendingApprovalsForUserAsync(string userEmail)
         {

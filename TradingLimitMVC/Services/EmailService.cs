@@ -2,19 +2,50 @@ using FluentEmail.Core;
 using Microsoft.Extensions.Options;
 using TradingLimitMVC.Models.AppSettings;
 using System.Net.Mail;
+using TradingLimitMVC.Models;
 
 namespace TradingLimitMVC.Services
 {
     public interface IEmailService
     {
-        Task SendEmailAsync(List<string> recipientsTo, List<string> recipientsCC, string subject, string body);
+        Task SendApprovalEmail(TradingLimitRequest req, string approverEmail, List<string> EmailCCs);
     }
 
     public class EmailService(
-         IOptionsSnapshot<SmtpAppSetting> _smtpAppSetting
-         ) : IEmailService
+        IOptionsSnapshot<SmtpAppSetting> _smtpAppSetting,
+        IOptionsSnapshot<GeneralAppSetting> _generalAppSetting) : IEmailService
     {
-        public Task SendEmailAsync(List<string> recipientsTo, List<string> recipientsCC, string subject, string body)
+        public async Task SendApprovalEmail(TradingLimitRequest req, string approverEmail, List<string> EmailCCs)
+        {
+            var generalAppSetting = _generalAppSetting.Value;
+            var domainHost = generalAppSetting.Host;
+
+            var recipientsTo = new List<string> { approverEmail };
+            var recipientsCC = EmailCCs;
+            var subject = $"[PENDING SG IT] Trading limit request: {req.RequestId}";
+            var body = $@"
+                <p>Please refer to the trading limit request below for your approval.<br/>
+                Awaiting your action.</p>
+                <p><a href='{domainHost}/Login?ReturnUrl={domainHost}/Approval/Details/{req.Id}'>Click here to approve</a></p>
+                Awaiting your action.</p>
+                <p>
+                    <strong>Requested ID:</strong> {req.RequestId}<br/>
+                    <strong>Limit Start Date:</strong> {req.RequestDate.ToString("dd/MM/yyyy HH:mm:ss")}<br/>
+                    <strong>Limit End Date:</strong> {req.LimitEndDate.ToString("dd/MM/yyyy HH:mm:ss")}<br/>
+                    <strong>TRCode:</strong> {req.TRCode}<br/>
+                    <strong>ClientCode:</strong> {req.ClientCode}<br/>
+                    <strong>RequestType:</strong> {req.RequestType}<br/>
+                    <strong>BriefDescription:</strong> {req.BriefDescription}<br/>
+                    <strong>GL Proposed Limit:</strong> {req.GLProposedLimit}<br/><br/>
+
+                    <strong>Submitted By:</strong> {req.SubmittedBy}<br/>
+                    <strong>GLSubmitted Date:</strong> {req.SubmittedDate?.ToString("dd/MM/yyyy HH:mm:ss") ?? "N/A"}<br/>
+                </p>";
+
+            await SendEmailAsync(recipientsTo, recipientsCC, subject, body);
+        }
+
+        private Task SendEmailAsync(List<string> recipientsTo, List<string> recipientsCC, string subject, string body)
         {
             var smtpAppSetting = _smtpAppSetting.Value;
 
