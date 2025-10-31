@@ -771,7 +771,7 @@ namespace TradingLimitMVC.Controllers
 
             var approvers = await query
                 .OrderBy(gs => gs.GroupID)
-                .ThenBy(gs => gs.TypeID)
+                .ThenByDescending(gs => gs.TypeID)
                 .ThenBy(gs => gs.Username)
                 .Select(gs => new ApproverInfo
                 {

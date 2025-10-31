@@ -533,6 +533,18 @@
         padding: 2px 6px;
         border-radius: 3px;
     }
+
+    /* Approvers Vertical List */
+    .approvers-vertical-list {
+        display: flex;
+        flex-direction: column;
+        gap: 0;
+    }
+
+    .approvers-vertical-list > div {
+        width: 100%;
+        display: block;
+    }
 </style>
 
 <div class="page-wrapper">
@@ -1095,17 +1107,17 @@
                                             
                                             @if (ViewBag.AvailableApprovers != null)
                                             {
-                                                <div class="row">
+                                                <div class="approvers-vertical-list">
                                                     @{
                                                         var approverIndex = 0;
                                                     }
                                                     @foreach (var approver in (List<TradingLimitMVC.Models.ApproverInfo>)ViewBag.AvailableApprovers)
                                                     {
-                                                        <div class="col-md-6 mb-3">
-                                                            <div class="card border-0 bg-light h-100">
+                                                        <div class="mb-3">
+                                                            <div class="card border-0 bg-light">
                                                                 <div class="card-body p-3">
                                                                     <div class="d-flex align-items-start">
-                                                                        <div class="form-check me-3">
+                                                                        <div class="form-check me-3" hidden>
                                                                             <input class="form-check-input" type="checkbox" 
                                                                                    value="@approver.Email" 
                                                                                    name="SelectedApprovers"
@@ -1113,7 +1125,7 @@
                                                                         </div>
                                                                         <div class="flex-grow-1">
                                                                             <div class="d-flex align-items-center mb-2">
-                                                                                <span class="badge bg-primary me-2">Step @(approverIndex + 1)</span>
+                                                                                @* <span class="badge bg-primary me-2">Step @(approverIndex + 1)</span> *@
                                                                                 @if (approver.GroupId.HasValue)
                                                                                 {
                                                                                     var groupBadgeClass = approver.GroupId switch {
@@ -1132,7 +1144,7 @@
                                                                                 <small class="text-muted">
                                                                                     <i class="fas fa-briefcase me-1"></i>@approver.Role
                                                                                 </small><br>
-                                                                                <small class="text-muted">
+                                                                                @* <small class="text-muted">
                                                                                     <i class="fas fa-building me-1"></i>@approver.Department
                                                                                 </small><br>
                                                                                 @if (approver.GroupId.HasValue)
@@ -1140,7 +1152,7 @@
                                                                                     <small class="text-muted">
                                                                                         <i class="fas fa-users me-1"></i>Group: @approver.GroupName (ID: @approver.GroupId)
                                                                                     </small><br>
-                                                                                }
+                                                                                } *@
                                                                                 <small class="text-muted">
                                                                                     <i class="fas fa-envelope me-1"></i>@approver.Email
                                                                                 </small>
