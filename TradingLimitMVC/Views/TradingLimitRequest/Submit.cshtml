@@ -62,6 +62,10 @@
                             <div class="fw-bold">@Model.Request?.RequestType</div>
                         </div>
                         <div class="col-md-6 mb-3">
+                            <label class="form-label text-muted">Reason Type</label>
+                            <div class="fw-bold">@Model.Request?.ReasonType</div>
+                        </div>
+                        <div class="col-md-6 mb-3">
                             <label class="form-label text-muted">Proposed GL Limit</label>
                             <div class="fw-bold text-success">@Model.Request?.GLProposedLimit.ToString("C")</div>
                         </div>

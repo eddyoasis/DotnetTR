@@ -251,6 +251,7 @@
                             <th>TR Code</th>
                             <th>Client Code</th>
                             <th>Request Type</th>
+                            <th>Reason Type</th>
                             <th>GL Proposed Limit</th>
                             <th>Status</th>
                             <th>Actions</th>
@@ -267,6 +268,7 @@
                                     <td>@Html.DisplayFor(modelItem => item.TRCode)</td>
                                     <td>@Html.DisplayFor(modelItem => item.ClientCode)</td>
                                     <td>@Html.DisplayFor(modelItem => item.RequestType)</td>
+                                    <td>@Html.DisplayFor(modelItem => item.ReasonType)</td>
                                     <td>@item.GLProposedLimit.ToString("C")</td>
                                     <td>
                                         <span class="status-badge status-@item.Status.ToLower()">

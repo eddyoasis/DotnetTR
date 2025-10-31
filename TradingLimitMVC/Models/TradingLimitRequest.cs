@@ -35,6 +35,11 @@ namespace TradingLimitMVC.Models
         [MaxLength(100)]
         public string RequestType { get; set; } = string.Empty;
 
+        [Display(Name = "Reason Type")]
+        [Required(ErrorMessage = "Reason Type is required")]
+        [MaxLength(100)]
+        public string ReasonType { get; set; } = string.Empty;
+
         [Display(Name = "Brief Description")]
         [Required(ErrorMessage = "Brief Description is required")]
         [MaxLength(1000)]

@@ -220,9 +220,9 @@ namespace TradingLimitMVC.Services
 
                 // Update request status
                 request.Status = "Submitted";
-                request.SubmittedDate = DateTime.UtcNow;
+                request.SubmittedDate = DateTime.UtcNow.AddHours(8);
                 request.SubmittedBy = submittedBy;
-                request.ModifiedDate = DateTime.UtcNow;
+                request.ModifiedDate = DateTime.UtcNow.AddHours(8);
                 request.ModifiedBy = submittedBy;
 
                 // Create multi-approval workflow

@@ -35,6 +35,7 @@ namespace TradingLimitMVC.Services
                     <strong>TRCode:</strong> {req.TRCode}<br/>
                     <strong>ClientCode:</strong> {req.ClientCode}<br/>
                     <strong>RequestType:</strong> {req.RequestType}<br/>
+                    <strong>ReasonType:</strong> {req.ReasonType}<br/>
                     <strong>BriefDescription:</strong> {req.BriefDescription}<br/>
                     <strong>GL Proposed Limit:</strong> {req.GLProposedLimit}<br/><br/>
 

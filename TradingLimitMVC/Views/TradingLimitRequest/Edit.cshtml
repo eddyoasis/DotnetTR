@@ -222,6 +222,20 @@
                     </div>
 
                     <div class="form-group">
+                        <label asp-for="ReasonType" class="form-label">Reason Type <span class="text-danger">*</span></label>
+                        <select asp-for="ReasonType" class="form-control required">
+                            <option value="">Select Reason Type</option>
+                            <option value="Business Growth">Business Growth</option>
+                            <option value="Market Opportunity">Market Opportunity</option>
+                            <option value="Risk Management">Risk Management</option>
+                            <option value="Regulatory Requirement">Regulatory Requirement</option>
+                            <option value="Client Request">Client Request</option>
+                            <option value="Other">Other</option>
+                        </select>
+                        <span asp-validation-for="ReasonType" class="text-danger"></span>
+                    </div>
+
+                    <div class="form-group">
                         <label asp-for="BriefDescription" class="form-label">Brief Description <span class="text-danger">*</span></label>
                         <textarea asp-for="BriefDescription" class="form-control required" rows="3" placeholder="Enter brief description of the request"></textarea>
                         <span asp-validation-for="BriefDescription" class="text-danger"></span>

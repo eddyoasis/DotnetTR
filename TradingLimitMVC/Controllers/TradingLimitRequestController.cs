@@ -98,7 +98,7 @@ namespace TradingLimitMVC.Controllers
             var model = new TradingLimitRequest
             {
                 RequestDate = DateTime.Today,
-                LimitEndDate = DateTime.Today.AddMonths(12)
+                LimitEndDate = DateTime.Today.AddDays(7)
             };
             return View(model);
         }
@@ -106,7 +106,7 @@ namespace TradingLimitMVC.Controllers
         // POST: TradingLimitRequest/Create
         [HttpPost("Create")]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Create([Bind("TRCode,RequestDate,LimitEndDate,ClientCode,RequestType,BriefDescription,GLCurrentLimit,GLProposedLimit,CurrentCurrentLimit,CurrentProposedLimit")] TradingLimitRequest tradingLimitRequest)
+        public async Task<IActionResult> Create([Bind("TRCode,RequestDate,LimitEndDate,ClientCode,RequestType,ReasonType,BriefDescription,GLCurrentLimit,GLProposedLimit,CurrentCurrentLimit,CurrentProposedLimit")] TradingLimitRequest tradingLimitRequest)
         {
             try
             {
@@ -163,7 +163,7 @@ namespace TradingLimitMVC.Controllers
         // POST: TradingLimitRequest/Edit/5
         [HttpPost("Edit/{id}")]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Edit(int id, [Bind("Id,RequestId,TRCode,RequestDate,LimitEndDate,ClientCode,RequestType,BriefDescription,GLCurrentLimit,GLProposedLimit,CurrentCurrentLimit,CurrentProposedLimit,Status,CreatedBy,CreatedDate")] TradingLimitRequest tradingLimitRequest)
+        public async Task<IActionResult> Edit(int id, [Bind("Id,RequestId,TRCode,RequestDate,LimitEndDate,ClientCode,RequestType,ReasonType,BriefDescription,GLCurrentLimit,GLProposedLimit,CurrentCurrentLimit,CurrentProposedLimit,Status,CreatedBy,CreatedDate")] TradingLimitRequest tradingLimitRequest)
         {
             if (id != tradingLimitRequest.Id)
             {
