@@ -167,7 +167,8 @@
                     <div class="info-label">Group:</div>
                     <div class="info-value">
                         <span class="badge badge-group group-@Model.GroupID">
-                            @Model.GroupName
+                            @(Model.GroupID switch {
+                                1 => "IWM",
                                 2 => "GSPS", 
                                 3 => "Risk",
                                 _ => $"Group {Model.GroupID}"
