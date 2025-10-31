@@ -96,6 +96,11 @@ namespace TradingLimitMVC.Models
         [MaxLength(100)]
         public string? SubmittedBy { get; set; }
 
+        [Display(Name = "Submitted By Email")]
+        [MaxLength(200)]
+        [EmailAddress(ErrorMessage = "Please enter a valid email address")]
+        public string? SubmittedByEmail { get; set; }
+
         // Legacy approval fields (for backward compatibility)
         [Display(Name = "Approver Email")]
         [MaxLength(200)]

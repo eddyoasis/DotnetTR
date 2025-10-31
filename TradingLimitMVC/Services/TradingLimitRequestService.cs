@@ -14,8 +14,8 @@ namespace TradingLimitMVC.Services
         Task<TradingLimitRequest> UpdateAsync(TradingLimitRequest tradingLimitRequest);
         Task<bool> DeleteAsync(int id);
         Task<string> GenerateRequestIdAsync();
-        Task<bool> SubmitAsync(int id, string submittedBy, string approvalEmail);
-        Task<bool> SubmitWithMultiApprovalAsync(int id, string submittedBy, List<ApprovalStepRequest> approvers, string workflowType = "Sequential");
+        Task<bool> SubmitAsync(int id, string submittedBy, string submittedByEmail, string approvalEmail);
+        Task<bool> SubmitWithMultiApprovalAsync(int id, string submittedBy, string submittedByEmail, List<ApprovalStepRequest> approvers, string workflowType = "Sequential");
         Task<IEnumerable<TradingLimitRequest>> GetByStatusAsync(string status);
         Task<IEnumerable<TradingLimitRequest>> GetByUserAsync(string userName);
         Task<IEnumerable<TradingLimitRequest>> GetPendingApprovalsForUserAsync(string userEmail);
@@ -177,7 +177,7 @@ namespace TradingLimitMVC.Services
             }
         }
 
-        public async Task<bool> SubmitAsync(int id, string submittedBy, string approvalEmail)
+        public async Task<bool> SubmitAsync(int id, string submittedBy, string submittedByEmail, string approvalEmail)
         {
             try
             {
@@ -191,6 +191,7 @@ namespace TradingLimitMVC.Services
                 request.Status = "Submitted";
                 request.SubmittedDate = DateTime.Now;
                 request.SubmittedBy = submittedBy;
+                request.SubmittedByEmail = submittedByEmail;
                 request.ApprovalEmail = approvalEmail;
                 request.ModifiedDate = DateTime.Now;
                 request.ModifiedBy = submittedBy;
@@ -207,7 +208,7 @@ namespace TradingLimitMVC.Services
             }
         }
 
-        public async Task<bool> SubmitWithMultiApprovalAsync(int id, string submittedBy, List<ApprovalStepRequest> approvers, string workflowType = "Sequential")
+        public async Task<bool> SubmitWithMultiApprovalAsync(int id, string submittedBy, string submittedByEmail, List<ApprovalStepRequest> approvers, string workflowType = "Sequential")
         {
             try
             {
@@ -222,6 +223,7 @@ namespace TradingLimitMVC.Services
                 request.Status = "Submitted";
                 request.SubmittedDate = DateTime.UtcNow.AddHours(8);
                 request.SubmittedBy = submittedBy;
+                request.SubmittedByEmail = submittedByEmail;
                 request.ModifiedDate = DateTime.UtcNow.AddHours(8);
                 request.ModifiedBy = submittedBy;
 
@@ -232,10 +234,14 @@ namespace TradingLimitMVC.Services
 
                 //Send Email
                 var approvalStep = workflow.ApprovalSteps.FirstOrDefault();
-                var approverEmail = approvalStep.ApproverEmail;
-                var observerEmails = await _context.GroupSettings.Where(x => x.GroupID == approvalStep.ApprovalGroupId && x.TypeID == 3).Select(x=>x.Email).ToListAsync();
+                if (approvalStep != null && !string.IsNullOrEmpty(approvalStep.ApproverEmail))
+                {
+                    var approverEmail = approvalStep.ApproverEmail;
+                    var observerEmails = await _context.GroupSettings.Where(x => x.GroupID == approvalStep.ApprovalGroupId && x.TypeID == 3).Select(x=>x.Email).ToListAsync();
+                    observerEmails.Add(submittedByEmail);
 
-                await _emailService.SendApprovalEmail(request, approverEmail, observerEmails);
+                    await _emailService.SendApprovalEmail(request, approverEmail, observerEmails);
+                }
 
                 _logger.LogInformation("Trading limit request with ID {Id} submitted with multi-approval workflow by {SubmittedBy}", id, submittedBy);
                 return true;

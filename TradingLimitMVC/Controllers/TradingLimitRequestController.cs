@@ -15,17 +15,20 @@ namespace TradingLimitMVC.Controllers
         private readonly ITradingLimitRequestService _tradingLimitRequestService;
         private readonly ILogger<TradingLimitRequestController> _logger;
         private readonly IWebHostEnvironment _environment;
+        private readonly IGeneralService _generalService;
 
         public TradingLimitRequestController(
             ApplicationDbContext context,
             ITradingLimitRequestService tradingLimitRequestService,
             ILogger<TradingLimitRequestController> logger,
-            IWebHostEnvironment environment)
+            IWebHostEnvironment environment,
+            IGeneralService generalService)
         {
             _context = context;
             _tradingLimitRequestService = tradingLimitRequestService;
             _logger = logger;
             _environment = environment;
+            _generalService = generalService;
         }
 
         // GET: TradingLimitRequest
@@ -114,8 +117,10 @@ namespace TradingLimitMVC.Controllers
                 {
                     // Set audit fields
                     var userName = GetCurrentUserName();
+                    var userEmail = await GetCurrentUserEmailAsync();
                     tradingLimitRequest.CreatedBy = userName;
                     tradingLimitRequest.CreatedDate = DateTime.Now;
+                    tradingLimitRequest.SubmittedByEmail = userEmail;
 
                     var createdRequest = await _tradingLimitRequestService.CreateAsync(tradingLimitRequest);
                     TempData["SuccessMessage"] = "Trading Limit Request created successfully.";
@@ -178,6 +183,12 @@ namespace TradingLimitMVC.Controllers
                     var userName = GetCurrentUserName();
                     tradingLimitRequest.ModifiedBy = userName;
                     tradingLimitRequest.ModifiedDate = DateTime.Now;
+                    
+                    // Ensure SubmittedByEmail is set if not already populated
+                    if (string.IsNullOrEmpty(tradingLimitRequest.SubmittedByEmail))
+                    {
+                        tradingLimitRequest.SubmittedByEmail = await GetCurrentUserEmailAsync();
+                    }
 
                     var updatedRequest = await _tradingLimitRequestService.UpdateAsync(tradingLimitRequest);
                     TempData["SuccessMessage"] = "Trading Limit Request updated successfully.";
@@ -299,7 +310,8 @@ namespace TradingLimitMVC.Controllers
                 }
 
                 var userName = GetCurrentUserName();
-                var result = await _tradingLimitRequestService.SubmitAsync(model.Id, userName, model.ApprovalEmail);
+                var userEmail = await GetCurrentUserEmailAsync();
+                var result = await _tradingLimitRequestService.SubmitAsync(model.Id, userName, userEmail, model.ApprovalEmail);
                 
                 if (result)
                 {
@@ -359,6 +371,7 @@ namespace TradingLimitMVC.Controllers
                 }
 
                 var userName = GetCurrentUserName();
+                var userEmail = await GetCurrentUserEmailAsync();
                 
                 // Convert view model to service request objects
                 var approvers = new List<ApprovalStepRequest>();
@@ -397,7 +410,7 @@ namespace TradingLimitMVC.Controllers
                 }
 
                 var result = await _tradingLimitRequestService.SubmitWithMultiApprovalAsync(
-                    model.Id, userName, approvers, model.WorkflowType);
+                    model.Id, userName, userEmail, approvers, model.WorkflowType);
                 
                 if (result)
                 {
@@ -439,6 +452,12 @@ namespace TradingLimitMVC.Controllers
         private string GetCurrentUserName()
         {
             return User?.Identity?.Name ?? BaseService.Username ?? "System";
+        }
+
+        // Helper method to get current user email
+        private async Task<string> GetCurrentUserEmailAsync()
+        {
+            return await _generalService.GetCurrentUserEmailAsync();
         }
 
         // Helper method to create ApprovalStepRequest with group information

@@ -611,20 +611,23 @@ namespace TradingLimitMVC.Controllers
                     // Activate next appropriate step (this will now handle skipped steps properly)
                     await ActivateNextStepAsync(workflow, currentStepNumber);
                     
-                    await _context.SaveChangesAsync();                
+                    await _context.SaveChangesAsync();
+
+                    //Send Email declaration
+                    var tradingLimitRequest = await _context.TradingLimitRequests.FirstOrDefaultAsync(x => x.Id == requestId);
 
                     // Verify workflow advancement
                     var nextActiveStep = FindNextActiveStepNumber(workflow, currentStepNumber);
                     if (nextActiveStep.HasValue)
                     {
                         //Send Email
-                        var tradingLimitRequest = await _context.TradingLimitRequests.FirstOrDefaultAsync(x => x.Id == requestId);
                         var approvalStep = workflow.ApprovalSteps.FirstOrDefault(x => x.StepNumber == nextActiveStep);
-                        
+
                         if (tradingLimitRequest != null && approvalStep != null)
                         {
                             var approverEmail = approvalStep.ApproverEmail;
                             var observerEmails = await _context.GroupSettings.Where(x => x.GroupID == approvalStep.ApprovalGroupId && x.TypeID == 3).Select(x => x.Email).ToListAsync();
+                            observerEmails.Add(tradingLimitRequest.SubmittedByEmail);
 
                             await _emailService.SendApprovalEmail(tradingLimitRequest, approverEmail, observerEmails);
                         }
@@ -634,6 +637,14 @@ namespace TradingLimitMVC.Controllers
                     }
                     else
                     {
+                        //Send Email
+                        if (tradingLimitRequest != null)
+                        {
+                            var submittedByEmail = tradingLimitRequest.SubmittedByEmail;
+
+                            await _emailService.SendApprovalCompletedEmail(tradingLimitRequest, submittedByEmail);
+                        }
+
                         _logger.LogInformation("Workflow for request {RequestId} completed after step {CurrentStep} - no more active steps", 
                             requestId, currentStepNumber);
                     }
