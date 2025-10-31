@@ -45,7 +45,7 @@
                         </div>
                     </div>
                 </div>
-                <div class="col-lg-3 col-md-6 mb-3">
+                @* <div class="col-lg-3 col-md-6 mb-3">
                     <div class="card border-0 shadow-sm h-100">
                         <div class="card-body p-4">
                             <div class="d-flex align-items-center">
@@ -61,7 +61,7 @@
                             </div>
                         </div>
                     </div>
-                </div>
+                </div> *@
                 <div class="col-lg-3 col-md-6 mb-3">
                     <div class="card border-0 shadow-sm h-100">
                         <div class="card-body p-4">
@@ -79,7 +79,7 @@
                         </div>
                     </div>
                 </div>
-                <div class="col-lg-3 col-md-6 mb-3">
+                @* <div class="col-lg-3 col-md-6 mb-3">
                     <div class="card border-0 shadow-sm h-100">
                         <div class="card-body p-4">
                             <div class="d-flex align-items-center">
@@ -95,7 +95,7 @@
                             </div>
                         </div>
                     </div>
-                </div>
+                </div> *@
             </div>
 
             <!-- Pending Requests Table -->
@@ -106,19 +106,21 @@
                             <i class="fas fa-list-check me-2 text-primary"></i>
                             Pending Approvals
                         </h5>
-                        <div class="d-flex gap-2">
+                        @* <div class="d-flex gap-2">
                             <select class="form-select form-select-sm" id="statusFilter" style="width: auto;">
                                 <option value="">All Status</option>
                                 <option value="Submitted">Submitted</option>
                                 <option value="Pending Approval">Pending Approval</option>
                             </select>
+                            <div>
+                            </div>
                             <select class="form-select form-select-sm" id="sortBy" style="width: auto;">
                                 <option value="date-desc">Latest First</option>
                                 <option value="date-asc">Oldest First</option>
                                 <option value="amount-desc">Highest Amount</option>
                                 <option value="amount-asc">Lowest Amount</option>
                             </select>
-                        </div>
+                        </div> *@
                     </div>
                 </div>
                 <div class="card-body p-0">
@@ -132,7 +134,7 @@
                                         <th class="border-0 px-4 py-3">Client Details</th>
                                         <th class="border-0 px-4 py-3">Proposed Limits</th>
                                         <th class="border-0 px-4 py-3">Submitted</th>
-                                        <th class="border-0 px-4 py-3">Priority</th>
+                                        @* <th class="border-0 px-4 py-3">Priority</th> *@
                                         <th class="border-0 px-4 py-3 text-center">Actions</th>
                                     </tr>
                                 </thead>
@@ -148,9 +150,10 @@
                                                 <div class="d-flex flex-column">
                                                     <strong class="text-dark">@request.RequestId</strong>
                                                     <small class="text-muted">@request.RequestType</small>
-                                                    <span class="badge bg-@(request.Status == "Submitted" ? "primary" : "warning") bg-opacity-10 text-@(request.Status == "Submitted" ? "primary" : "warning") mt-1 align-self-start">
+                                                    <small class="text-muted">@request.ReasonType</small>
+                                                    @* <span class="badge bg-@(request.Status == "Submitted" ? "primary" : "warning") bg-opacity-10 text-@(request.Status == "Submitted" ? "primary" : "warning") mt-1 align-self-start">
                                                         @request.Status
-                                                    </span>
+                                                    </span> *@
                                                 </div>
                                             </td>
                                             <td class="px-4 py-3">
@@ -186,7 +189,7 @@
                                                     <small class="text-muted">by @request.SubmittedBy</small>
                                                 </div>
                                             </td>
-                                            <td class="px-4 py-3">
+                                           @*  <td class="px-4 py-3">
                                                 <span class="badge bg-@priorityClass bg-opacity-10 text-@priorityClass">
                                                     @priorityText
                                                 </span>
@@ -194,7 +197,7 @@
                                                 {
                                                     <small class="text-muted d-block mt-1">@daysSinceSubmission day(s) ago</small>
                                                 }
-                                            </td>
+                                            </td> *@
                                             <td class="px-4 py-3 text-center">
                                                 <div class="btn-group" role="group">
                                                     <a href="@Url.Action("Details", new { id = request.Id })" 
@@ -203,13 +206,13 @@
                                                         <i class="fas fa-eye me-1"></i>
                                                         Review
                                                     </a>
-                                                    <button type="button" 
+                                                    @* <button type="button" 
                                                             class="btn btn-outline-success btn-sm quick-approve-btn"
                                                             data-request-id="@request.Id"
                                                             data-request-name="@request.RequestId"
                                                             title="Quick Approve">
                                                         <i class="fas fa-check"></i>
-                                                    </button>
+                                                    </button> *@
                                                 </div>
                                             </td>
                                         </tr>

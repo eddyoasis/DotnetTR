@@ -558,9 +558,9 @@
                                 </h5>
                                 <p class="text-white mb-2">@TempData["SuccessMessage"]</p>
                                 <div class="d-flex gap-2">
-                                    <button type="button" class="btn btn-light btn-sm" onclick="scrollToSubmissionSection()">
+                                   @*  <button type="button" class="btn btn-light btn-sm" onclick="scrollToSubmissionSection()">
                                         <i class="fas fa-rocket me-1"></i> Resubmit Now
-                                    </button>
+                                    </button> *@
                                     <a asp-action="Edit" asp-route-id="@Model.Id" class="btn btn-outline-light btn-sm">
                                         <i class="fas fa-edit me-1"></i> Continue Editing
                                     </a>
@@ -584,6 +584,23 @@
                 <div class="alert alert-danger alert-dismissible fade show" role="alert">
                     @TempData["ErrorMessage"]
                     <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+            }
+
+            <!-- Status-based Alert for Rejected Requests -->
+            @if (Model.Status == "Rejected")
+            {
+                <div class="alert alert-danger alert-dismissible fade show border-0 shadow-sm" role="alert" style="background: linear-gradient(135deg, #dc3545, #c82333);">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-grow-1">
+                            <h5 class="alert-heading text-white mb-2">
+                                <i class="fas fa-times-circle me-2"></i>
+                                Request Rejected
+                            </h5>
+                            <p class="text-white mb-0">Trading limit request @Model.RequestId has been rejected.</p>
+                        </div>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="alert"></button>
+                    </div>
                 </div>
             }
 
@@ -1029,7 +1046,7 @@
                             <input name="Id" type="hidden" value="@Model.Id" />
                             
                             <!-- Workflow Configuration Card -->
-                            <div class="card border-0 shadow-sm mb-4">
+                            <div class="card border-0 shadow-sm mb-4" hidden>
                                 <div class="card-header bg-primary text-white py-3">
                                     <h5 class="card-title mb-0 text-white">
                                         <i class="fas fa-cogs me-2"></i>
@@ -1161,7 +1178,7 @@
                                         </div>
                                     </div>
 
-                                    <div class="alert alert-info border-0 bg-info bg-opacity-10">
+                                    @* <div class="alert alert-info border-0 bg-info bg-opacity-10">
                                         <div class="d-flex align-items-start">
                                             <i class="fas fa-info-circle text-info me-2 mt-1"></i>
                                             <div>
@@ -1181,7 +1198,7 @@
                                                 </div>
                                             </div>
                                         </div>
-                                    </div>
+                                    </div> *@
                                 </div>
                             </div>
 
@@ -1217,12 +1234,12 @@
                     </a>
                     @if (Model.Status == "Draft")
                     {
-                        @if (TempData["SuccessMessage"]?.ToString()?.Contains("REJECTED REQUEST UPDATED") == true)
+                        @* @if (TempData["SuccessMessage"]?.ToString()?.Contains("REJECTED REQUEST UPDATED") == true)
                         {
                             <button type="button" class="btn btn-success" onclick="scrollToSubmissionSection()">
                                 <i class="fas fa-rocket"></i> Quick Resubmit
                             </button>
-                        }
+                        } *@
                         <a asp-action="Delete" asp-route-id="@Model.Id" class="btn btn-danger">
                             <i class="fas fa-trash"></i> Delete
                         </a>

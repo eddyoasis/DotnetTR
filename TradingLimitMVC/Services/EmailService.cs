@@ -9,7 +9,7 @@ namespace TradingLimitMVC.Services
     public interface IEmailService
     {
         Task SendApprovalEmail(TradingLimitRequest req, string approverEmail, List<string> EmailCCs);
-        Task SendApprovalCompletedEmail(TradingLimitRequest req, string submittedByEmail);
+        Task SendApprovalCompletedEmail(TradingLimitRequest req, string submittedByEmail, bool isApproved);
     }
 
     public class EmailService(
@@ -47,17 +47,17 @@ namespace TradingLimitMVC.Services
             await SendEmailAsync(recipientsTo, recipientsCC, subject, body);
         }
 
-        public async Task SendApprovalCompletedEmail(TradingLimitRequest req, string submmitedByEmail)
+        public async Task SendApprovalCompletedEmail(TradingLimitRequest req, string submmitedByEmail, bool isApproved)
         {
             var generalAppSetting = _generalAppSetting.Value;
             var domainHost = generalAppSetting.Host;
 
             var recipientsTo = new List<string> { submmitedByEmail };
             var recipientsCC = new List<string> { };
-            var subject = $"[PENDING SG IT] Trading limit request: {req.RequestId}";
+            var approvalStatus = isApproved ? "Approved" : "Rejected";
+            var subject = $"[{approvalStatus}] Trading limit request: {req.RequestId}";
             var body = $@"
-                <p>Please refer to the trading limit request below.<br/>
-                Awaiting your action.</p>
+                <p>Please refer to the trading limit request below.</p>
                 <p><a href='{domainHost}/Login?ReturnUrl={domainHost}/TradingLimitRequest/Details/{req.Id}'>Click here to see detail</a></p></p>
                 <p>
                     <strong>Requested ID:</strong> {req.RequestId}<br/>

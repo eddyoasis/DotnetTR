@@ -386,7 +386,7 @@ namespace TradingLimitMVC.Controllers
 
                 //Send email
                 var submittedByEmail = request.SubmittedByEmail;
-                await _emailService.SendApprovalCompletedEmail(request, submittedByEmail);
+                await _emailService.SendApprovalCompletedEmail(request, submittedByEmail, false); // false = rejected
 
                 TempData["SuccessMessage"] = $"Trading limit request {request.RequestId} has been rejected.";
                 _logger.LogInformation("Request {RequestId} rejected by {User}", request.RequestId, currentUser);
@@ -646,7 +646,7 @@ namespace TradingLimitMVC.Controllers
                         {
                             var submittedByEmail = tradingLimitRequest.SubmittedByEmail;
 
-                            await _emailService.SendApprovalCompletedEmail(tradingLimitRequest, submittedByEmail);
+                            await _emailService.SendApprovalCompletedEmail(tradingLimitRequest, submittedByEmail, true);
                         }
 
                         _logger.LogInformation("Workflow for request {RequestId} completed after step {CurrentStep} - no more active steps", 
