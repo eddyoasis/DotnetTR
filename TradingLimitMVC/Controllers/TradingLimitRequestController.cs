@@ -109,7 +109,7 @@ namespace TradingLimitMVC.Controllers
         // POST: TradingLimitRequest/Create
         [HttpPost("Create")]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Create([Bind("TRCode,RequestDate,LimitEndDate,ClientCode,RequestType,ReasonType,BriefDescription,GLCurrentLimit,GLProposedLimit,CurrentCurrentLimit,CurrentProposedLimit")] TradingLimitRequest tradingLimitRequest)
+        public async Task<IActionResult> Create([Bind("TRCode,RequestDate,LimitEndDate,ClientCode,RequestType,ReasonType,BriefDescription,GLCurrentLimit,GLProposedLimit,CurrentCurrentLimit,CurrentProposedLimit")] TradingLimitRequest tradingLimitRequest, List<IFormFile> attachments)
         {
             try
             {
@@ -123,7 +123,29 @@ namespace TradingLimitMVC.Controllers
                     tradingLimitRequest.SubmittedByEmail = userEmail;
 
                     var createdRequest = await _tradingLimitRequestService.CreateAsync(tradingLimitRequest);
-                    TempData["SuccessMessage"] = "Trading Limit Request created successfully.";
+                    
+                    // Handle multiple file uploads
+                    if (attachments != null && attachments.Any())
+                    {
+                        var uploadResults = await ProcessFileUploads(createdRequest.Id, attachments, userName);
+                        if (uploadResults.FailedUploads.Any())
+                        {
+                            TempData["WarningMessage"] = $"Request created successfully, but {uploadResults.FailedUploads.Count} file(s) failed to upload: {string.Join(", ", uploadResults.FailedUploads)}";
+                        }
+                        else if (uploadResults.SuccessfulUploads > 0)
+                        {
+                            TempData["SuccessMessage"] = $"Trading Limit Request created successfully with {uploadResults.SuccessfulUploads} attachment(s).";
+                        }
+                        else
+                        {
+                            TempData["SuccessMessage"] = "Trading Limit Request created successfully.";
+                        }
+                    }
+                    else
+                    {
+                        TempData["SuccessMessage"] = "Trading Limit Request created successfully.";
+                    }
+                    
                     return RedirectToAction(nameof(Details), new { id = createdRequest.Id });
                 }
             }
@@ -168,7 +190,7 @@ namespace TradingLimitMVC.Controllers
         // POST: TradingLimitRequest/Edit/5
         [HttpPost("Edit/{id}")]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Edit(int id, [Bind("Id,RequestId,TRCode,RequestDate,LimitEndDate,ClientCode,RequestType,ReasonType,BriefDescription,GLCurrentLimit,GLProposedLimit,CurrentCurrentLimit,CurrentProposedLimit,Status,CreatedBy,CreatedDate")] TradingLimitRequest tradingLimitRequest)
+        public async Task<IActionResult> Edit(int id, [Bind("Id,RequestId,TRCode,RequestDate,LimitEndDate,ClientCode,RequestType,ReasonType,BriefDescription,GLCurrentLimit,GLProposedLimit,CurrentCurrentLimit,CurrentProposedLimit,Status,CreatedBy,CreatedDate")] TradingLimitRequest tradingLimitRequest, List<IFormFile> attachments)
         {
             if (id != tradingLimitRequest.Id)
             {
@@ -191,7 +213,29 @@ namespace TradingLimitMVC.Controllers
                     }
 
                     var updatedRequest = await _tradingLimitRequestService.UpdateAsync(tradingLimitRequest);
-                    TempData["SuccessMessage"] = "Trading Limit Request updated successfully.";
+                    
+                    // Handle multiple file uploads for edit
+                    if (attachments != null && attachments.Any())
+                    {
+                        var uploadResults = await ProcessFileUploads(updatedRequest.Id, attachments, userName);
+                        if (uploadResults.FailedUploads.Any())
+                        {
+                            TempData["WarningMessage"] = $"Request updated successfully, but {uploadResults.FailedUploads.Count} file(s) failed to upload: {string.Join(", ", uploadResults.FailedUploads)}";
+                        }
+                        else if (uploadResults.SuccessfulUploads > 0)
+                        {
+                            TempData["SuccessMessage"] = $"Trading Limit Request updated successfully with {uploadResults.SuccessfulUploads} new attachment(s).";
+                        }
+                        else
+                        {
+                            TempData["SuccessMessage"] = "Trading Limit Request updated successfully.";
+                        }
+                    }
+                    else
+                    {
+                        TempData["SuccessMessage"] = "Trading Limit Request updated successfully.";
+                    }
+                    
                     return RedirectToAction(nameof(Details), new { id = updatedRequest.Id });
                 }
             }
@@ -458,6 +502,124 @@ namespace TradingLimitMVC.Controllers
         private async Task<string> GetCurrentUserEmailAsync()
         {
             return await _generalService.GetCurrentUserEmailAsync();
+        }
+
+        // Helper method to process multiple file uploads
+        private async Task<FileUploadResult> ProcessFileUploads(int requestId, List<IFormFile> files, string uploadedBy)
+        {
+            var result = new FileUploadResult();
+            
+            foreach (var file in files)
+            {
+                if (file != null && file.Length > 0)
+                {
+                    try
+                    {
+                        // Validate file
+                        var validationResult = ValidateFile(file);
+                        if (!validationResult.IsValid)
+                        {
+                            result.FailedUploads.Add($"{file.FileName}: {validationResult.ErrorMessage}");
+                            continue;
+                        }
+
+                        // Create attachment object
+                        var attachment = await CreateAttachmentFromFile(file, uploadedBy);
+                        
+                        // Save attachment to database
+                        var success = await _tradingLimitRequestService.AddAttachmentAsync(requestId, attachment);
+                        
+                        if (success)
+                        {
+                            result.SuccessfulUploads++;
+                            _logger.LogInformation("File {FileName} uploaded successfully for request {RequestId}", file.FileName, requestId);
+                        }
+                        else
+                        {
+                            result.FailedUploads.Add($"{file.FileName}: Database save failed");
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "Error uploading file {FileName} for request {RequestId}", file.FileName, requestId);
+                        result.FailedUploads.Add($"{file.FileName}: {ex.Message}");
+                    }
+                }
+            }
+            
+            return result;
+        }
+
+        // Helper method to validate uploaded file
+        private FileValidationResult ValidateFile(IFormFile file)
+        {
+            const int maxFileSize = 10 * 1024 * 1024; // 10MB
+            var allowedExtensions = new[] { ".pdf", ".doc", ".docx", ".xls", ".xlsx", ".jpg", ".jpeg", ".png", ".gif" };
+            
+            var result = new FileValidationResult { IsValid = true };
+
+            // Check file size
+            if (file.Length > maxFileSize)
+            {
+                result.IsValid = false;
+                result.ErrorMessage = "File size exceeds 10MB limit";
+                return result;
+            }
+
+            // Check file extension
+            var extension = Path.GetExtension(file.FileName).ToLowerInvariant();
+            if (!allowedExtensions.Contains(extension))
+            {
+                result.IsValid = false;
+                result.ErrorMessage = $"File type {extension} not supported";
+                return result;
+            }
+
+            // Check for malicious file names
+            if (string.IsNullOrWhiteSpace(file.FileName) || file.FileName.Contains("..") || 
+                Path.GetInvalidFileNameChars().Any(c => file.FileName.Contains(c)))
+            {
+                result.IsValid = false;
+                result.ErrorMessage = "Invalid file name";
+                return result;
+            }
+
+            return result;
+        }
+
+        // Helper method to create attachment from uploaded file
+        private async Task<TradingLimitRequestAttachment> CreateAttachmentFromFile(IFormFile file, string uploadedBy)
+        {
+            // Create uploads directory if it doesn't exist
+            var uploadsPath = Path.Combine(_environment.WebRootPath, "uploads", "trading-limit-requests");
+            if (!Directory.Exists(uploadsPath))
+            {
+                Directory.CreateDirectory(uploadsPath);
+            }
+
+            // Generate unique file name to avoid conflicts
+            var fileExtension = Path.GetExtension(file.FileName);
+            var uniqueFileName = $"{Guid.NewGuid()}{fileExtension}";
+            var filePath = Path.Combine(uploadsPath, uniqueFileName);
+
+            // Save file to disk
+            using (var stream = new FileStream(filePath, FileMode.Create))
+            {
+                await file.CopyToAsync(stream);
+            }
+
+            // Create attachment object
+            var attachment = new TradingLimitRequestAttachment
+            {
+                FileName = file.FileName,
+                FilePath = Path.Combine("uploads", "trading-limit-requests", uniqueFileName), // Relative path for web access
+                ContentType = file.ContentType,
+                FileSize = file.Length,
+                UploadDate = DateTime.Now,
+                UploadedBy = uploadedBy
+            };
+
+            return attachment;
         }
 
         // Helper method to create ApprovalStepRequest with group information
@@ -915,5 +1077,134 @@ namespace TradingLimitMVC.Controllers
                 return Json(new Dictionary<string, List<ApproverInfo>>());
             }
         }
+
+        // GET: Download attachment
+        [HttpGet("DownloadAttachment/{attachmentId}")]
+        public async Task<IActionResult> DownloadAttachment(int attachmentId)
+        {
+            try
+            {
+                var attachment = await _tradingLimitRequestService.GetAttachmentAsync(attachmentId);
+                if (attachment == null)
+                {
+                    return NotFound();
+                }
+
+                var filePath = Path.Combine(_environment.WebRootPath, attachment.FilePath);
+                if (!System.IO.File.Exists(filePath))
+                {
+                    _logger.LogWarning("File not found on disk: {FilePath}", filePath);
+                    TempData["ErrorMessage"] = "File not found on server.";
+                    return NotFound();
+                }
+
+                var fileBytes = await System.IO.File.ReadAllBytesAsync(filePath);
+                return File(fileBytes, attachment.ContentType, attachment.FileName);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error downloading attachment {AttachmentId}", attachmentId);
+                TempData["ErrorMessage"] = "An error occurred while downloading the file.";
+                return RedirectToAction(nameof(Index));
+            }
+        }
+
+        // POST: Delete attachment
+        [HttpPost("DeleteAttachment/{attachmentId}")]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> DeleteAttachment(int attachmentId, int requestId)
+        {
+            try
+            {
+                var attachment = await _tradingLimitRequestService.GetAttachmentAsync(attachmentId);
+                if (attachment == null)
+                {
+                    return Json(new { success = false, message = "Attachment not found" });
+                }
+
+                // Delete file from disk
+                var filePath = Path.Combine(_environment.WebRootPath, attachment.FilePath);
+                if (System.IO.File.Exists(filePath))
+                {
+                    System.IO.File.Delete(filePath);
+                }
+
+                // Delete from database
+                var success = await _tradingLimitRequestService.RemoveAttachmentAsync(attachmentId);
+                
+                if (success)
+                {
+                    _logger.LogInformation("Attachment {AttachmentId} deleted successfully", attachmentId);
+                    return Json(new { success = true, message = "Attachment deleted successfully" });
+                }
+                else
+                {
+                    return Json(new { success = false, message = "Failed to delete attachment from database" });
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error deleting attachment {AttachmentId}", attachmentId);
+                return Json(new { success = false, message = "An error occurred while deleting the attachment" });
+            }
+        }
+
+        // POST: Add attachment to existing request
+        [HttpPost("AddAttachment/{requestId}")]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> AddAttachment(int requestId, List<IFormFile> attachments)
+        {
+            try
+            {
+                if (attachments == null || !attachments.Any())
+                {
+                    return Json(new { success = false, message = "No files selected" });
+                }
+
+                var userName = GetCurrentUserName();
+                var uploadResults = await ProcessFileUploads(requestId, attachments, userName);
+
+                if (uploadResults.FailedUploads.Any())
+                {
+                    var message = uploadResults.SuccessfulUploads > 0 
+                        ? $"{uploadResults.SuccessfulUploads} file(s) uploaded successfully, {uploadResults.FailedUploads.Count} failed: {string.Join(", ", uploadResults.FailedUploads)}"
+                        : $"All uploads failed: {string.Join(", ", uploadResults.FailedUploads)}";
+                    
+                    return Json(new { 
+                        success = uploadResults.SuccessfulUploads > 0, 
+                        message = message,
+                        successfulUploads = uploadResults.SuccessfulUploads,
+                        failedUploads = uploadResults.FailedUploads.Count
+                    });
+                }
+                else
+                {
+                    return Json(new { 
+                        success = true, 
+                        message = $"{uploadResults.SuccessfulUploads} file(s) uploaded successfully",
+                        successfulUploads = uploadResults.SuccessfulUploads,
+                        failedUploads = 0
+                    });
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error adding attachments to request {RequestId}", requestId);
+                return Json(new { success = false, message = "An error occurred while uploading files" });
+            }
+        }
+    }
+
+    // Helper classes for file upload functionality
+    public class FileUploadResult
+    {
+        public int SuccessfulUploads { get; set; } = 0;
+        public List<string> FailedUploads { get; set; } = new List<string>();
+    }
+
+    public class FileValidationResult
+    {
+        public bool IsValid { get; set; }
+        public string ErrorMessage { get; set; } = string.Empty;
     }
 }

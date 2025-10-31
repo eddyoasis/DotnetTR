@@ -14,3 +14,4 @@ obj/
 .vs/
 *.user
 *.suo
+/TradingLimitMVC/wwwroot/uploads/trading-limit-requests

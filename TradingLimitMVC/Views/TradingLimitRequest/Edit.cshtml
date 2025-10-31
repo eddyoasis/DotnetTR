@@ -150,6 +150,98 @@
         color: #6c757d;
         cursor: not-allowed;
     }
+
+    /* Selected Files Styles */
+    .selected-files-container {
+        background: #f8f9fa;
+        border: 1px solid #e9ecef;
+        border-radius: 8px;
+        padding: 15px;
+        margin-top: 15px;
+    }
+
+    .selected-files-list {
+        max-height: 200px;
+        overflow-y: auto;
+    }
+
+    .selected-file-item {
+        display: flex;
+        align-items: center;
+        justify-content: between;
+        padding: 8px 12px;
+        margin: 5px 0;
+        background: white;
+        border: 1px solid #dee2e6;
+        border-radius: 6px;
+        transition: all 0.2s ease;
+    }
+
+    .selected-file-item:hover {
+        border-color: #007bff;
+        box-shadow: 0 2px 4px rgba(0,123,255,0.1);
+    }
+
+    .file-info {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .file-name {
+        font-weight: 500;
+        color: #495057;
+        font-size: 14px;
+        margin-bottom: 2px;
+    }
+
+    .file-size {
+        font-size: 12px;
+        color: #6c757d;
+    }
+
+    .file-icon {
+        margin-right: 10px;
+        font-size: 18px;
+    }
+
+    .file-remove-btn {
+        background: none;
+        border: none;
+        color: #dc3545;
+        cursor: pointer;
+        padding: 4px;
+        border-radius: 4px;
+        transition: background-color 0.2s ease;
+    }
+
+    .file-remove-btn:hover {
+        background-color: #f8d7da;
+    }
+
+    .file-status-valid {
+        color: #28a745;
+    }
+
+    .file-status-error {
+        color: #dc3545;
+    }
+
+    .file-input {
+        position: relative;
+        transition: all 0.3s ease;
+    }
+
+    .file-input:hover {
+        border-color: #007bff;
+        box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+    }
+
+    .file-input.drag-over {
+        border-color: #28a745;
+        background-color: #d4edda;
+        box-shadow: 0 0 0 0.2rem rgba(40, 167, 69, 0.25);
+    }
 </style>
 
 <div class="page-wrapper">
@@ -159,7 +251,7 @@
         </div>
 
         <div class="form-content">
-            <form asp-action="Edit" method="post">
+            <form asp-action="Edit" method="post" enctype="multipart/form-data">
                 <div asp-validation-summary="ModelOnly" class="text-danger"></div>
                 
                 <input type="hidden" asp-for="Id" />
@@ -274,6 +366,54 @@
                     </div> *@
                 </div>
 
+                <!-- Supporting Documents Section -->
+                <div class="form-section">
+                    <h3 class="section-title">Supporting Documents</h3>
+                    
+                    @if (Model.Attachments?.Any() == true)
+                    {
+                        <div class="existing-attachments mb-3">
+                            <label class="form-label">Current Attachments:</label>
+                            <ul class="list-unstyled">
+                                @foreach (var attachment in Model.Attachments)
+                                {
+                                    <li class="d-flex align-items-center justify-content-between p-2 border rounded mb-2">
+                                        <span>
+                                            <i class="fas fa-file me-2"></i>
+                                            @attachment.FileName
+                                            <small class="text-muted">(@((attachment.FileSize / 1024.0).ToString("F1")) KB)</small>
+                                        </span>
+                                        <a href="@Url.Action("DownloadAttachment", new { attachmentId = attachment.Id })" 
+                                           class="btn btn-sm btn-outline-primary" title="Download">
+                                            <i class="fas fa-download"></i>
+                                        </a>
+                                    </li>
+                                }
+                            </ul>
+                        </div>
+                    }
+                    
+                    <div class="form-col">
+                        <p><strong>Add Additional Files</strong></p>
+                        <input type="file" id="fileUpload" name="attachments" multiple accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.gif" class="form-control file-input" style="margin-top: 10px;" onchange="displaySelectedFiles(this)" ondragover="handleDragOver(event)" ondrop="handleDrop(event)" />
+                        <small class="text-muted">
+                            Supported formats: PDF, DOC, DOCX, XLS, XLSX, JPG, PNG, GIF (Max 10MB per file)
+                        </small>
+                        
+                        <!-- Selected Files Display -->
+                        <div id="selectedFilesContainer" class="selected-files-container" style="display: none; margin-top: 15px;">
+                            <h6 class="mb-2"><i class="fas fa-paperclip me-1"></i> Selected Additional Files:</h6>
+                            <div id="selectedFilesList" class="selected-files-list"></div>
+                            <div class="mt-2">
+                                <small class="text-muted">
+                                    <span id="fileCount">0</span> file(s) selected • 
+                                    Total size: <span id="totalSize">0 KB</span>
+                                </small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Form Buttons -->
                 <div class="btn-group">
                     <button type="submit" class="btn btn-warning">
@@ -290,4 +430,154 @@
 
 @section Scripts {
     @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+    
+    <script>
+        // Function to display selected files
+        function displaySelectedFiles(input) {
+            const container = document.getElementById('selectedFilesContainer');
+            const filesList = document.getElementById('selectedFilesList');
+            const fileCount = document.getElementById('fileCount');
+            const totalSize = document.getElementById('totalSize');
+            
+            // Clear previous content
+            filesList.innerHTML = '';
+            
+            if (input.files && input.files.length > 0) {
+                container.style.display = 'block';
+                
+                let totalSizeBytes = 0;
+                const maxFileSize = 10 * 1024 * 1024; // 10MB
+                const allowedExtensions = ['.pdf', '.doc', '.docx', '.xls', '.xlsx', '.jpg', '.jpeg', '.png', '.gif'];
+                
+                Array.from(input.files).forEach((file, index) => {
+                    totalSizeBytes += file.size;
+                    
+                    // Validate file
+                    const isValidSize = file.size <= maxFileSize;
+                    const fileExtension = '.' + file.name.split('.').pop().toLowerCase();
+                    const isValidType = allowedExtensions.includes(fileExtension);
+                    const isValid = isValidSize && isValidType;
+                    
+                    // Create file item element
+                    const fileItem = document.createElement('div');
+                    fileItem.className = 'selected-file-item';
+                    fileItem.innerHTML = `
+                        <i class="fas ${getFileIcon(fileExtension)} file-icon ${isValid ? 'file-status-valid' : 'file-status-error'}"></i>
+                        <div class="file-info">
+                            <div class="file-name">${file.name}</div>
+                            <div class="file-size">
+                                ${formatFileSize(file.size)}
+                                ${!isValid ? '<span class="file-status-error">• Invalid file</span>' : ''}
+                                ${!isValidSize ? '<span class="file-status-error">• Too large (max 10MB)</span>' : ''}
+                                ${!isValidType ? '<span class="file-status-error">• Unsupported format</span>' : ''}
+                            </div>
+                        </div>
+                        <button type="button" class="file-remove-btn" onclick="removeFile(${index})" title="Remove file">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    `;
+                    
+                    filesList.appendChild(fileItem);
+                });
+                
+                // Update summary
+                fileCount.textContent = input.files.length;
+                totalSize.textContent = formatFileSize(totalSizeBytes);
+            } else {
+                container.style.display = 'none';
+            }
+        }
+        
+        // Function to remove a file from selection
+        function removeFile(index) {
+            const input = document.getElementById('fileUpload');
+            const dt = new DataTransfer();
+            
+            // Add all files except the one to remove
+            Array.from(input.files).forEach((file, i) => {
+                if (i !== index) {
+                    dt.items.add(file);
+                }
+            });
+            
+            // Update input files
+            input.files = dt.files;
+            
+            // Refresh display
+            displaySelectedFiles(input);
+        }
+        
+        // Helper function to get file icon based on extension
+        function getFileIcon(extension) {
+            switch (extension.toLowerCase()) {
+                case '.pdf':
+                    return 'fa-file-pdf';
+                case '.doc':
+                case '.docx':
+                    return 'fa-file-word';
+                case '.xls':
+                case '.xlsx':
+                    return 'fa-file-excel';
+                case '.jpg':
+                case '.jpeg':
+                case '.png':
+                case '.gif':
+                    return 'fa-file-image';
+                default:
+                    return 'fa-file';
+            }
+        }
+        
+        // Helper function to format file size
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+        }
+        
+        // Drag and drop functions
+        function handleDragOver(event) {
+            event.preventDefault();
+            event.stopPropagation();
+            event.target.classList.add('drag-over');
+        }
+        
+        function handleDrop(event) {
+            event.preventDefault();
+            event.stopPropagation();
+            event.target.classList.remove('drag-over');
+            
+            const input = document.getElementById('fileUpload');
+            const files = event.dataTransfer.files;
+            
+            if (files.length > 0) {
+                input.files = files;
+                displaySelectedFiles(input);
+            }
+        }
+        
+        // Remove drag-over class when drag leaves
+        document.addEventListener('DOMContentLoaded', function() {
+            const fileInput = document.getElementById('fileUpload');
+            
+            if (fileInput) {
+                fileInput.addEventListener('dragleave', function(event) {
+                    event.target.classList.remove('drag-over');
+                });
+            }
+        });
+
+        // Clear file selection when form is reset
+        document.addEventListener('DOMContentLoaded', function() {
+            const form = document.querySelector('form');
+            if (form) {
+                form.addEventListener('reset', function() {
+                    const container = document.getElementById('selectedFilesContainer');
+                    container.style.display = 'none';
+                });
+            }
+        });
+    </script>
 }
