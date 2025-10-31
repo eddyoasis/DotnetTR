@@ -561,59 +561,59 @@
             {
                 @if (TempData["SuccessMessage"].ToString().Contains("REJECTED REQUEST UPDATED") || ViewBag.IsResubmitReady == true)
                 {
-                    <div class="alert alert-success alert-dismissible fade show border-0 shadow-sm" role="alert" style="background: linear-gradient(135deg, #28a745, #20c997);">
-                        <div class="d-flex align-items-center">
-                            <div class="flex-grow-1">
-                                <h5 class="alert-heading text-white mb-2">
-                                    <i class="fas fa-check-circle me-2"></i>
-                                    Request Successfully Updated!
-                                </h5>
-                                <p class="text-white mb-2">@TempData["SuccessMessage"]</p>
-                                <div class="d-flex gap-2">
-                                   @*  <button type="button" class="btn btn-light btn-sm" onclick="scrollToSubmissionSection()">
+                            <div class="alert alert-success alert-dismissible fade show border-0 shadow-sm" role="alert" style="background: linear-gradient(135deg, #28a745, #20c997);">
+                                <div class="d-flex align-items-center">
+                                    <div class="flex-grow-1">
+                                        <h5 class="alert-heading text-white mb-2">
+                                            <i class="fas fa-check-circle me-2"></i>
+                                            Request Successfully Updated!
+                                        </h5>
+                                        <p class="text-white mb-2">@TempData["SuccessMessage"]</p>
+                                        <div class="d-flex gap-2">
+                                    @*  <button type="button" class="btn btn-light btn-sm" onclick="scrollToSubmissionSection()">
                                         <i class="fas fa-rocket me-1"></i> Resubmit Now
                                     </button> *@
-                                    <a asp-action="Edit" asp-route-id="@Model.Id" class="btn btn-outline-light btn-sm">
-                                        <i class="fas fa-edit me-1"></i> Continue Editing
-                                    </a>
+                                            <a asp-action="Edit" asp-route-id="@Model.Id" class="btn btn-outline-light btn-sm">
+                                                <i class="fas fa-edit me-1"></i> Continue Editing
+                                            </a>
+                                        </div>
+                                    </div>
+                                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="alert"></button>
                                 </div>
                             </div>
-                            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="alert"></button>
-                        </div>
-                    </div>
                 }
                 else
                 {
-                    <div class="alert alert-success alert-dismissible fade show" role="alert">
+                            <div class="alert alert-success alert-dismissible fade show" role="alert">
                         @TempData["SuccessMessage"]
-                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                    </div>
+                                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                            </div>
                 }
             }
 
             @if (TempData["ErrorMessage"] != null)
             {
-                <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                    <div class="alert alert-danger alert-dismissible fade show" role="alert">
                     @TempData["ErrorMessage"]
-                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                </div>
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
             }
 
             <!-- Status-based Alert for Rejected Requests -->
             @if (Model.Status == "Rejected")
             {
-                <div class="alert alert-danger alert-dismissible fade show border-0 shadow-sm" role="alert" style="background: linear-gradient(135deg, #dc3545, #c82333);">
-                    <div class="d-flex align-items-center">
-                        <div class="flex-grow-1">
-                            <h5 class="alert-heading text-white mb-2">
-                                <i class="fas fa-times-circle me-2"></i>
-                                Request Rejected
-                            </h5>
-                            <p class="text-white mb-0">Trading limit request @Model.RequestId has been rejected.</p>
+                    <div class="alert alert-danger alert-dismissible fade show border-0 shadow-sm" role="alert" style="background: linear-gradient(135deg, #dc3545, #c82333);">
+                        <div class="d-flex align-items-center">
+                            <div class="flex-grow-1">
+                                <h5 class="alert-heading text-white mb-2">
+                                    <i class="fas fa-times-circle me-2"></i>
+                                    Request Rejected
+                                </h5>
+                                <p class="text-white mb-0">Trading limit request @Model.RequestId has been rejected.</p>
+                            </div>
+                            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="alert"></button>
                         </div>
-                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="alert"></button>
                     </div>
-                </div>
             }
 
             <!-- Basic Information -->
@@ -852,7 +852,8 @@
                                         <div class="d-flex justify-content-between align-items-start">
                                             <div class="flex-grow-1">
                                                 <h6 class="timeline-title">
-                                                    Step @step.StepNumber: @step.ApproverName
+                                                    @* Step @step.StepNumber: @step.ApproverName *@
+                                                    @step.ApproverName
                                                     @if (!string.IsNullOrEmpty(step.ApproverRole))
                                                     {
                                                         <small class="text-muted">(@step.ApproverRole)</small>
@@ -860,22 +861,22 @@
                                                     @if (!string.IsNullOrEmpty(step.ApprovalGroupName))
                                                     {
                                                         var timelineGroupBadgeClass = step.ApprovalGroupId switch {
-                                                            1 => "bg-info bg-opacity-20 text-info",        // IWM
-                                                            2 => "bg-warning bg-opacity-20 text-warning",  // GSPS  
-                                                            3 => "bg-danger bg-opacity-20 text-danger",    // Risk
-                                                            _ => "bg-secondary bg-opacity-20 text-secondary"
+                                                            1 => "bg-info",        // IWM
+                                                            2 => "bg-warning",     // GSPS
+                                                            3 => "bg-danger",      // Risk
+                                                            _ => "bg-secondary"
                                                         };
                                                         <span class="badge @timelineGroupBadgeClass ms-2" style="font-size: 0.7rem;">@step.ApprovalGroupName</span>
                                                     }
                                                 </h6>
                                                 <p class="timeline-text text-muted mb-1">
                                                     @step.ApproverEmail
-                                                    @if (step.ApprovalGroupId.HasValue)
+                                                    @* @if (step.ApprovalGroupId.HasValue)
                                                     {
                                                         <small class="text-muted ms-2">
                                                             <i class="fas fa-users me-1"></i>Group ID: @step.ApprovalGroupId
                                                         </small>
-                                                    }
+                                                    } *@
                                                 </p>
                                             </div>
                                             <span class="badge timeline-status-badge timeline-status-@stepStatus.ToLower().Replace(" ", "-")">
