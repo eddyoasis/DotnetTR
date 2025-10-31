@@ -49,6 +49,7 @@ namespace TradingLimitMVC.Models
         [Column(TypeName = "decimal(18,2)")]
         [Required(ErrorMessage = "GL Current Limit is required")]
         [Range(0, double.MaxValue, ErrorMessage = "GL Current Limit must be a positive number")]
+        [ScaffoldColumn(false)] // Temporarily hidden
         public decimal GLCurrentLimit { get; set; }
 
         [Display(Name = "GL Proposed Limit")]
@@ -61,12 +62,14 @@ namespace TradingLimitMVC.Models
         [Column(TypeName = "decimal(18,2)")]
         [Required(ErrorMessage = "Current Current Limit is required")]
         [Range(0, double.MaxValue, ErrorMessage = "Current Current Limit must be a positive number")]
+        [ScaffoldColumn(false)] // Temporarily hidden
         public decimal CurrentCurrentLimit { get; set; }
 
         [Display(Name = "Current Proposed Limit")]
         [Column(TypeName = "decimal(18,2)")]
         [Required(ErrorMessage = "Current Proposed Limit is required")]
         [Range(0, double.MaxValue, ErrorMessage = "Current Proposed Limit must be a positive number")]
+        [ScaffoldColumn(false)] // Temporarily hidden
         public decimal CurrentProposedLimit { get; set; }
 
         // Audit fields

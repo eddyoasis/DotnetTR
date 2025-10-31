@@ -547,16 +547,17 @@
             <div class="info-section">
                 <h3 class="section-title">Limit Information</h3>
                 <div class="info-grid">
-                    <div>
+                    @* Temporarily hidden fields - can be re-enabled by uncommenting *@
+                    @* <div>
                         <div class="info-row">
                             <div class="info-label">GL Current Limit:</div>
                             <div class="info-value">@Model.GLCurrentLimit.ToString("C")</div>
-                        </div>
+                        </div> *@
                         <div class="info-row">
                             <div class="info-label">GL Proposed Limit:</div>
                             <div class="info-value">@Model.GLProposedLimit.ToString("C")</div>
                         </div>
-                    </div>
+                    @* </div>
                     <div>
                         <div class="info-row">
                             <div class="info-label">Current Current Limit:</div>
@@ -566,7 +567,7 @@
                             <div class="info-label">Current Proposed Limit:</div>
                             <div class="info-value">@Model.CurrentProposedLimit.ToString("C")</div>
                         </div>
-                    </div>
+                    </div> *@
                 </div>
             </div>
 

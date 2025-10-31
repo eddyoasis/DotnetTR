@@ -116,21 +116,23 @@
                 </div>
                 <div class="card-body p-4">
                     <div class="row">
-                        <div class="col-md-6">
+                        @* Temporarily hidden - Current GL Limit field *@
+                        @* <div class="col-md-6">
                             <div class="mb-4">
                                 <label class="form-label text-muted">Current GL Limit</label>
                                 <div class="display-6 text-primary fw-bold">
                                     @Model.Request.CurrentProposedLimit.ToString("C")
                                 </div>
                             </div>
-                        </div>
-                        <div class="col-md-6">
+                        </div> *@
+                        <div class="col-md-12">
                             <div class="mb-4">
                                 <label class="form-label text-muted">Proposed GL Limit</label>
                                 <div class="display-6 text-success fw-bold">
                                     @Model.Request.GLProposedLimit.ToString("C")
                                 </div>
-                                @{
+                                @* Temporarily hidden - difference calculation using CurrentProposedLimit *@
+                                @* @{
                                     var difference = Model.Request.GLProposedLimit - Model.Request.CurrentProposedLimit;
                                     var percentageChange = Model.Request.CurrentProposedLimit > 0 ? (difference / Model.Request.CurrentProposedLimit) * 100 : 0;
                                 }
@@ -142,7 +144,7 @@
                                             (@(difference > 0 ? "+" : "")@percentageChange.ToString("F1")%)
                                         </span>
                                     </div>
-                                }
+                                } *@
                             </div>
                         </div>
 

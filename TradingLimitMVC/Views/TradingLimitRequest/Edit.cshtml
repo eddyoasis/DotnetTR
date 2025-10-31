@@ -246,17 +246,18 @@
                 <div class="form-section">
                     <h3 class="section-title">Limit Information</h3>
                     
-                    <div class="form-row">
+                    @* Temporarily hidden fields - can be re-enabled by uncommenting *@
+                    @* <div class="form-row">
                         <div class="form-col">
                             <label asp-for="GLCurrentLimit" class="form-label">GL Current Limit <span class="text-danger">*</span></label>
                             <input asp-for="GLCurrentLimit" class="form-control required" type="number" step="0.01" placeholder="0.00" />
                             <span asp-validation-for="GLCurrentLimit" class="text-danger"></span>
                         </div>
-                        <div class="form-col">
+                        <div class="form-col"> *@
                             <label asp-for="GLProposedLimit" class="form-label">GL Proposed Limit <span class="text-danger">*</span></label>
                             <input asp-for="GLProposedLimit" class="form-control required" type="number" step="0.01" placeholder="0.00" />
                             <span asp-validation-for="GLProposedLimit" class="text-danger"></span>
-                        </div>
+                        @* </div>
                     </div>
 
                     <div class="form-row">
@@ -270,7 +271,7 @@
                             <input asp-for="CurrentProposedLimit" class="form-control required" type="number" step="0.01" placeholder="0.00" />
                             <span asp-validation-for="CurrentProposedLimit" class="text-danger"></span>
                         </div>
-                    </div>
+                    </div> *@
                 </div>
 
                 <!-- Form Buttons -->
