@@ -547,10 +547,36 @@
         <div class="content-section">
             @if (TempData["SuccessMessage"] != null)
             {
-                <div class="alert alert-success alert-dismissible fade show" role="alert">
-                    @TempData["SuccessMessage"]
-                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                </div>
+                @if (TempData["SuccessMessage"].ToString().Contains("REJECTED REQUEST UPDATED") || ViewBag.IsResubmitReady == true)
+                {
+                    <div class="alert alert-success alert-dismissible fade show border-0 shadow-sm" role="alert" style="background: linear-gradient(135deg, #28a745, #20c997);">
+                        <div class="d-flex align-items-center">
+                            <div class="flex-grow-1">
+                                <h5 class="alert-heading text-white mb-2">
+                                    <i class="fas fa-check-circle me-2"></i>
+                                    Request Successfully Updated!
+                                </h5>
+                                <p class="text-white mb-2">@TempData["SuccessMessage"]</p>
+                                <div class="d-flex gap-2">
+                                    <button type="button" class="btn btn-light btn-sm" onclick="scrollToSubmissionSection()">
+                                        <i class="fas fa-rocket me-1"></i> Resubmit Now
+                                    </button>
+                                    <a asp-action="Edit" asp-route-id="@Model.Id" class="btn btn-outline-light btn-sm">
+                                        <i class="fas fa-edit me-1"></i> Continue Editing
+                                    </a>
+                                </div>
+                            </div>
+                            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="alert"></button>
+                        </div>
+                    </div>
+                }
+                else
+                {
+                    <div class="alert alert-success alert-dismissible fade show" role="alert">
+                        @TempData["SuccessMessage"]
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                }
             }
 
             @if (TempData["ErrorMessage"] != null)
@@ -981,10 +1007,19 @@
             <!-- Submit Options Section -->
             @if (Model.Status == "Draft")
             {
+                @if (TempData["SuccessMessage"]?.ToString()?.Contains("REJECTED REQUEST UPDATED") == true)
+                {
+                    <div class="alert alert-info alert-dismissible fade show" role="alert">
+                        <i class="fas fa-info-circle me-2"></i>
+                        <strong>Ready for Resubmission!</strong> Your rejected request has been updated and is now ready to be submitted for approval again.
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                }
+                
                 <div class="info-section">
                     <h3 class="section-title">
                         <i class="fas fa-paper-plane me-2"></i>
-                        Submit Request for Approval
+                        @(TempData["SuccessMessage"]?.ToString()?.Contains("REJECTED REQUEST UPDATED") == true || ViewBag.IsResubmitReady == true ? "Resubmit Request for Approval" : "Submit Request for Approval")
                     </h3>
                     
                     <!-- Approval Setup (Always Visible) -->
@@ -1154,8 +1189,15 @@
                             <div class="d-flex gap-3 mb-4">
                                 <button type="submit" class="btn btn-success btn-lg px-4">
                                     <i class="fas fa-paper-plane me-2"></i>
-                                    Submit to All Designated Approvers
+                                    @(TempData["SuccessMessage"]?.ToString()?.Contains("REJECTED REQUEST UPDATED") == true ? "Resubmit to All Designated Approvers" : "Submit to All Designated Approvers")
                                 </button>
+                                @if (TempData["SuccessMessage"]?.ToString()?.Contains("REJECTED REQUEST UPDATED") == true)
+                                {
+                                    <div class="alert alert-success d-inline-flex align-items-center ms-3" style="margin-bottom: 0; padding: 8px 12px;">
+                                        <i class="fas fa-recycle me-2"></i>
+                                        <small>Resubmission Ready</small>
+                                    </div>
+                                }
                             </div>
                         </form>
                     </div>
@@ -1164,14 +1206,27 @@
 
             <!-- Other Action Buttons -->
             <div class="btn-group">
-                @if (Model.Status == "Draft")
+                @if (Model.Status == "Draft" || Model.Status == "Rejected")
                 {
                     <a asp-action="Edit" asp-route-id="@Model.Id" class="btn btn-warning">
                         <i class="fas fa-edit"></i> Edit
+                        @if (Model.Status == "Rejected")
+                        {
+                            <span class="badge bg-light text-dark ms-1">Resubmit</span>
+                        }
                     </a>
-                    <a asp-action="Delete" asp-route-id="@Model.Id" class="btn btn-danger">
-                        <i class="fas fa-trash"></i> Delete
-                    </a>
+                    @if (Model.Status == "Draft")
+                    {
+                        @if (TempData["SuccessMessage"]?.ToString()?.Contains("REJECTED REQUEST UPDATED") == true)
+                        {
+                            <button type="button" class="btn btn-success" onclick="scrollToSubmissionSection()">
+                                <i class="fas fa-rocket"></i> Quick Resubmit
+                            </button>
+                        }
+                        <a asp-action="Delete" asp-route-id="@Model.Id" class="btn btn-danger">
+                            <i class="fas fa-trash"></i> Delete
+                        </a>
+                    }
                 }
                 
                 <a asp-action="Index" class="btn btn-secondary">
@@ -1386,7 +1441,48 @@
                 });
             }
             
+            // Function to scroll to submission section
+            window.scrollToSubmissionSection = function() {
+                const submissionSection = document.querySelector('h3:contains("Submit Request for Approval"), h3:contains("Resubmit Request for Approval")');
+                if (submissionSection) {
+                    submissionSection.scrollIntoView({ 
+                        behavior: 'smooth', 
+                        block: 'start' 
+                    });
+                } else {
+                    // Fallback: scroll to submission form
+                    const multiApprovalSetup = document.getElementById('multiApprovalSetup');
+                    if (multiApprovalSetup) {
+                        multiApprovalSetup.scrollIntoView({ 
+                            behavior: 'smooth', 
+                            block: 'start' 
+                        });
+                    }
+                }
+                
+                // Highlight the submission section briefly
+                setTimeout(function() {
+                    const submitButton = document.querySelector('button[type="submit"]');
+                    if (submitButton) {
+                        submitButton.classList.add('btn-pulse');
+                        setTimeout(function() {
+                            submitButton.classList.remove('btn-pulse');
+                        }, 2000);
+                    }
+                }, 500);
+            };
 
         });
     </script>
+    
+    <style>
+        .btn-pulse {
+            animation: pulse-highlight 2s ease-in-out;
+        }
+        
+        @@keyframes pulse-highlight {
+            0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(40, 167, 69, 0.7); }
+            50% { transform: scale(1.05); box-shadow: 0 0 0 10px rgba(40, 167, 69, 0); }
+        }
+    </style>
 }

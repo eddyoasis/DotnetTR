@@ -279,11 +279,14 @@
                                         <a asp-action="Details" asp-route-id="@item.Id" class="btn-action btn-view" title="View Details">
                                             <i class="fas fa-eye"></i>
                                         </a>
-                                        @if (item.Status == "Draft")
+                                        @if (item.Status == "Draft" || item.Status == "Rejected")
                                         {
-                                            <a asp-action="Edit" asp-route-id="@item.Id" class="btn-action btn-edit" title="Edit">
+                                            <a asp-action="Edit" asp-route-id="@item.Id" class="btn-action btn-edit" title="@(item.Status == "Rejected" ? "Edit & Resubmit" : "Edit")">
                                                 <i class="fas fa-edit"></i>
                                             </a>
+                                        }
+                                        @if (item.Status == "Draft")
+                                        {
                                             <a asp-action="Delete" asp-route-id="@item.Id" class="btn-action btn-delete" title="Delete">
                                                 <i class="fas fa-trash"></i>
                                             </a>

@@ -51,7 +51,7 @@ namespace TradingLimitMVC.Controllers
 
         // GET: TradingLimitRequest/Details/5
         [HttpGet("Details/{id}")]
-        public async Task<IActionResult> Details(int id)
+        public async Task<IActionResult> Details(int id, string? resubmit = null)
         {
             try
             {
@@ -84,6 +84,10 @@ namespace TradingLimitMVC.Controllers
                 ViewBag.AvailableApprovers = approvers;
                 ViewBag.SuggestedWorkflow = suggestedWorkflow;
                 ViewBag.EnhancedWorkflow = enhancedWorkflow;
+                
+                // Pass resubmit flag to view for enhanced UI
+                ViewBag.IsResubmitReady = resubmit == "ready";
+                
                 return View(request);
             }
             catch (Exception ex)
@@ -170,10 +174,10 @@ namespace TradingLimitMVC.Controllers
                     return NotFound();
                 }
 
-                // Check if request can be edited (only drafts can be edited)
-                if (request.Status != "Draft")
+                // Check if request can be edited (drafts and rejected requests can be edited)
+                if (request.Status != "Draft" && request.Status != "Rejected")
                 {
-                    TempData["ErrorMessage"] = "Only draft requests can be edited.";
+                    TempData["ErrorMessage"] = "Only draft and rejected requests can be edited.";
                     return RedirectToAction(nameof(Details), new { id });
                 }
 
@@ -190,7 +194,7 @@ namespace TradingLimitMVC.Controllers
         // POST: TradingLimitRequest/Edit/5
         [HttpPost("Edit/{id}")]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Edit(int id, [Bind("Id,RequestId,TRCode,RequestDate,LimitEndDate,ClientCode,RequestType,ReasonType,BriefDescription,GLCurrentLimit,GLProposedLimit,CurrentCurrentLimit,CurrentProposedLimit,Status,CreatedBy,CreatedDate")] TradingLimitRequest tradingLimitRequest, List<IFormFile> attachments)
+        public async Task<IActionResult> Edit(int id, [Bind("Id,RequestId,TRCode,RequestDate,LimitEndDate,ClientCode,RequestType,ReasonType,BriefDescription,GLCurrentLimit,GLProposedLimit,CurrentCurrentLimit,CurrentProposedLimit,Status,CreatedBy,CreatedDate,SubmittedByEmail")] TradingLimitRequest tradingLimitRequest, List<IFormFile> attachments)
         {
             if (id != tradingLimitRequest.Id)
             {
@@ -201,10 +205,47 @@ namespace TradingLimitMVC.Controllers
             {
                 if (ModelState.IsValid)
                 {
+                    // Check if this was a rejected request being edited (use AsNoTracking to avoid tracking conflicts)
+                    var originalRequest = await _context.TradingLimitRequests
+                        .AsNoTracking()
+                        .FirstOrDefaultAsync(r => r.Id == id);
+                    bool wasRejected = originalRequest?.Status == "Rejected";
+                    
+                    // Log the original and incoming status for debugging
+                    _logger.LogInformation("Edit request {RequestId}: Original Status = {OriginalStatus}, Incoming Status = {IncomingStatus}, Was Rejected = {WasRejected}", 
+                        id, originalRequest?.Status, tradingLimitRequest.Status, wasRejected);
+                    
                     // Set audit fields
                     var userName = GetCurrentUserName();
                     tradingLimitRequest.ModifiedBy = userName;
                     tradingLimitRequest.ModifiedDate = DateTime.Now;
+                    
+                    // Reset status to Draft if it was rejected (so it can go through approval workflow again)
+                    if (wasRejected)
+                    {
+                        tradingLimitRequest.Status = "Draft";
+                        // Clear previous approval data since this will need new approval
+                        tradingLimitRequest.ApprovedDate = null;
+                        tradingLimitRequest.ApprovedBy = null;
+                        tradingLimitRequest.ApprovalComments = null;
+                        tradingLimitRequest.SubmittedDate = null;
+                        tradingLimitRequest.SubmittedBy = null;
+                        tradingLimitRequest.ApprovalEmail = null;
+                        
+                        // Clear approval workflow data if it exists
+                        var existingWorkflow = await _context.ApprovalWorkflows
+                            .Include(w => w.ApprovalSteps)
+                            .FirstOrDefaultAsync(w => w.TradingLimitRequestId == id);
+                            
+                        if (existingWorkflow != null)
+                        {
+                            // Remove all approval steps first
+                            _context.ApprovalSteps.RemoveRange(existingWorkflow.ApprovalSteps);
+                            // Remove the workflow
+                            _context.ApprovalWorkflows.Remove(existingWorkflow);
+                            await _context.SaveChangesAsync();
+                        }
+                    }
                     
                     // Ensure SubmittedByEmail is set if not already populated
                     if (string.IsNullOrEmpty(tradingLimitRequest.SubmittedByEmail))
@@ -214,29 +255,63 @@ namespace TradingLimitMVC.Controllers
 
                     var updatedRequest = await _tradingLimitRequestService.UpdateAsync(tradingLimitRequest);
                     
+                    // Log the final status to verify it was actually updated
+                    _logger.LogInformation("Request {RequestId} final status after update: {Status}", 
+                        updatedRequest.Id, updatedRequest.Status);
+                    
                     // Handle multiple file uploads for edit
                     if (attachments != null && attachments.Any())
                     {
                         var uploadResults = await ProcessFileUploads(updatedRequest.Id, attachments, userName);
+                        string baseMessage = wasRejected 
+                            ? $"✅ REJECTED REQUEST UPDATED: Status changed from 'Rejected' to 'Draft' - Request #{updatedRequest.RequestId} is now ready for resubmission" 
+                            : "Trading Limit Request updated successfully";
+                        
+                        // Log the status change for debugging
+                        if (wasRejected)
+                        {
+                            _logger.LogInformation("Request {RequestId} status changed from Rejected to Draft after edit by {User}", 
+                                updatedRequest.Id, userName);
+                        }
+                            
                         if (uploadResults.FailedUploads.Any())
                         {
-                            TempData["WarningMessage"] = $"Request updated successfully, but {uploadResults.FailedUploads.Count} file(s) failed to upload: {string.Join(", ", uploadResults.FailedUploads)}";
+                            TempData["WarningMessage"] = $"{baseMessage}, but {uploadResults.FailedUploads.Count} file(s) failed to upload: {string.Join(", ", uploadResults.FailedUploads)}";
                         }
                         else if (uploadResults.SuccessfulUploads > 0)
                         {
-                            TempData["SuccessMessage"] = $"Trading Limit Request updated successfully with {uploadResults.SuccessfulUploads} new attachment(s).";
+                            TempData["SuccessMessage"] = $"{baseMessage} with {uploadResults.SuccessfulUploads} new attachment(s).";
                         }
                         else
                         {
-                            TempData["SuccessMessage"] = "Trading Limit Request updated successfully.";
+                            TempData["SuccessMessage"] = $"{baseMessage}.";
                         }
                     }
                     else
                     {
-                        TempData["SuccessMessage"] = "Trading Limit Request updated successfully.";
+                        string message = wasRejected 
+                            ? $"✅ REJECTED REQUEST UPDATED: Status changed from 'Rejected' to 'Draft' - Request #{updatedRequest.RequestId} is now ready for resubmission." 
+                            : "Trading Limit Request updated successfully.";
+                        TempData["SuccessMessage"] = message;
+                        
+                        // Log the status change for debugging
+                        if (wasRejected)
+                        {
+                            _logger.LogInformation("Request {RequestId} status changed from Rejected to Draft after edit by {User}", 
+                                updatedRequest.Id, userName);
+                        }
                     }
                     
-                    return RedirectToAction(nameof(Details), new { id = updatedRequest.Id });
+                    // Force a fresh load of the page to show updated status
+                    // Add special parameter for rejected request updates to highlight resubmission
+                    if (wasRejected)
+                    {
+                        return RedirectToAction(nameof(Details), new { id = updatedRequest.Id, refresh = DateTime.Now.Ticks, resubmit = "ready" });
+                    }
+                    else
+                    {
+                        return RedirectToAction(nameof(Details), new { id = updatedRequest.Id, refresh = DateTime.Now.Ticks });
+                    }
                 }
             }
             catch (Exception ex)

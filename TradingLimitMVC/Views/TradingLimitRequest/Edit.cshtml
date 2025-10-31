@@ -251,6 +251,15 @@
         </div>
 
         <div class="form-content">
+            @if (Model.Status == "Rejected")
+            {
+                <div class="alert alert-warning alert-dismissible fade show" role="alert">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    <strong>Notice:</strong> You are editing a rejected request. Upon saving, the status will be reset to "Draft" and the request will need to go through the approval workflow again.
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+            }
+            
             <form asp-action="Edit" method="post" enctype="multipart/form-data">
                 <div asp-validation-summary="ModelOnly" class="text-danger"></div>
                 

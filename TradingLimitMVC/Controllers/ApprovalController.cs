@@ -382,7 +382,11 @@ namespace TradingLimitMVC.Controllers
                 }
 
                 // Send notification
-                await SendApprovalNotificationAsync(request, NotificationType.Rejected, model.Comments);
+                //await SendApprovalNotificationAsync(request, NotificationType.Rejected, model.Comments);
+
+                //Send email
+                var submittedByEmail = request.SubmittedByEmail;
+                await _emailService.SendApprovalCompletedEmail(request, submittedByEmail);
 
                 TempData["SuccessMessage"] = $"Trading limit request {request.RequestId} has been rejected.";
                 _logger.LogInformation("Request {RequestId} rejected by {User}", request.RequestId, currentUser);
