@@ -8,6 +8,7 @@ using System.Security.Claims;
 using TradingLimitMVC.Models.AppSettings;
 using Azure.Core;
 using Microsoft.Extensions.Options;
+using TradingLimitMVC.Helpers;
 
 namespace TradingLimitMVC.Controllers
 {
@@ -240,10 +241,10 @@ namespace TradingLimitMVC.Controllers
                 {
                     // Legacy single-approver workflow: Update request status directly
                     request.Status = "Approved";
-                    request.ModifiedDate = DateTime.UtcNow;
+                    request.ModifiedDate = DateTimeHelper.GetCurrentLocalTime();
                     request.ModifiedBy = currentUserName;
                     request.ApprovedBy = currentUser;
-                    request.ApprovedDate = DateTime.UtcNow;
+                    request.ApprovedDate = DateTimeHelper.GetCurrentLocalTime();
                     request.ApprovalComments = model.Comments;
 
                     // Add approval record
@@ -368,10 +369,10 @@ namespace TradingLimitMVC.Controllers
                 {
                     // Legacy single-approver workflow: Update request status directly
                     request.Status = "Rejected";
-                    request.ModifiedDate = DateTime.UtcNow;
+                    request.ModifiedDate = DateTimeHelper.GetCurrentLocalTime();
                     request.ModifiedBy = currentUserName;
                     request.ApprovedBy = currentUser;
-                    request.ApprovedDate = DateTime.UtcNow;
+                    request.ApprovedDate = DateTimeHelper.GetCurrentLocalTime();
                     request.ApprovalComments = model.Comments;
 
                     // Add approval record
@@ -466,10 +467,10 @@ namespace TradingLimitMVC.Controllers
                 {
                     // Legacy single-approver workflow: Update request status directly
                     request.Status = "Revision Required";
-                    request.ModifiedDate = DateTime.UtcNow;
+                    request.ModifiedDate = DateTimeHelper.GetCurrentLocalTime();
                     request.ModifiedBy = currentUserName;
                     request.ApprovedBy = currentUser;
-                    request.ApprovedDate = DateTime.UtcNow;
+                    request.ApprovedDate = DateTimeHelper.GetCurrentLocalTime();
                     request.ApprovalComments = model.Comments;
 
                     // Add approval record
@@ -598,7 +599,7 @@ namespace TradingLimitMVC.Controllers
                     {
                         step.Status = "Skipped";
                         step.Comments = $"Skipped - Group {step.ApprovalGroupName ?? "requirement"} already met in this step";
-                        step.ActionDate = DateTime.UtcNow;
+                        step.ActionDate = DateTimeHelper.GetCurrentLocalTime();
                         
                         _logger.LogInformation("Skipped step {StepId} for {ApproverEmail} in step {StepNumber} - group requirement met", 
                             step.Id, step.ApproverEmail, step.StepNumber);
@@ -711,7 +712,7 @@ namespace TradingLimitMVC.Controllers
                             
                             step.Status = "Skipped";
                             step.Comments = $"Skipped - {skipReason}";
-                            step.ActionDate = DateTime.UtcNow;
+                            step.ActionDate = DateTimeHelper.GetCurrentLocalTime();
                             totalStepsSkipped++;
                             
                             _logger.LogInformation("Skipped step {StepId} (Step {StepNumber}) for {ApproverEmail} from group {GroupName} with role {Role} - {SkipReason}", 
@@ -877,14 +878,14 @@ namespace TradingLimitMVC.Controllers
                 {
                     // No more active steps - workflow is complete
                     workflow.Status = "Approved";
-                    workflow.CompletedDate = DateTime.UtcNow;
+                    workflow.CompletedDate = DateTimeHelper.GetCurrentLocalTime();
                     
                     // Update the main request status
                     var request = await _context.TradingLimitRequests.FindAsync(workflow.TradingLimitRequestId);
                     if (request != null)
                     {
                         request.Status = "Approved";
-                        request.ModifiedDate = DateTime.UtcNow;
+                        request.ModifiedDate = DateTimeHelper.GetCurrentLocalTime();
                     }
                     
                     _logger.LogInformation("Workflow {WorkflowId} completed - all required steps processed (some may have been skipped)", workflow.Id);
@@ -1038,9 +1039,9 @@ namespace TradingLimitMVC.Controllers
                     _ => NotificationType.ApprovalRequired
                 },
                 Message = comments,
-                SentDate = DateTime.UtcNow,
+                SentDate = DateTimeHelper.GetCurrentLocalTime(),
                 IsRead = true,
-                ReadDate = DateTime.UtcNow
+                ReadDate = DateTimeHelper.GetCurrentLocalTime()
             };
 
             _context.ApprovalNotifications.Add(approvalRecord);
@@ -1062,7 +1063,7 @@ namespace TradingLimitMVC.Controllers
                         RecipientName = request.CreatedBy, // You might want to get the actual name
                         Type = notificationType,
                         Message = comments,
-                        SentDate = DateTime.UtcNow,
+                        SentDate = DateTimeHelper.GetCurrentLocalTime(),
                         IsRead = false
                     };
 
@@ -1478,13 +1479,13 @@ namespace TradingLimitMVC.Controllers
                     {
                         // All steps are complete
                         workflow.Status = "Approved";
-                        workflow.CompletedDate = DateTime.UtcNow;
+                        workflow.CompletedDate = DateTimeHelper.GetCurrentLocalTime();
                         
                         var request = await _context.TradingLimitRequests.FindAsync(requestId);
                         if (request != null)
                         {
                             request.Status = "Approved";
-                            request.ModifiedDate = DateTime.UtcNow;
+                            request.ModifiedDate = DateTimeHelper.GetCurrentLocalTime();
                         }
                         
                         await _context.SaveChangesAsync();

@@ -28,7 +28,7 @@ namespace TradingLimitMVC.Controllers
                 {
                     TotalTradingLimitRequests = await _context.TradingLimitRequests.CountAsync(),
                     PendingApprovals = await _context.TradingLimitRequests
-                        .CountAsync(tlr => tlr.Status == "Pending"),
+                        .CountAsync(tlr => tlr.Status == "Submitted"),
                     ApprovedRequests = await _context.TradingLimitRequests
                         .CountAsync(tlr => tlr.Status == "Approved"),
                     RejectedRequests = await _context.TradingLimitRequests

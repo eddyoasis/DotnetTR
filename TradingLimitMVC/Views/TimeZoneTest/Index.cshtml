@@ -1,0 +1,111 @@
+@model TimeZoneTestViewModel
+@{
+    ViewData["Title"] = "Timezone Helper Test";
+}
+
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0">
+                        <i class="fas fa-clock me-2"></i>
+                        DateTimeHelper Test - UTC+@Model.OffsetHours
+                    </h4>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h5 class="text-primary">Raw DateTime Values</h5>
+                            <table class="table table-borderless">
+                                <tr>
+                                    <td><strong>UTC Now:</strong></td>
+                                    <td>@Model.UtcNow.ToString("dd/MM/yyyy HH:mm:ss")</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Local Time:</strong></td>
+                                    <td>@Model.LocalTime.ToString("dd/MM/yyyy HH:mm:ss")</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Offset Hours:</strong></td>
+                                    <td>+@Model.OffsetHours hours</td>
+                                </tr>
+                            </table>
+                        </div>
+                        <div class="col-md-6">
+                            <h5 class="text-success">Formatted with Helper</h5>
+                            <table class="table table-borderless">
+                                <tr>
+                                    <td><strong>Full Format:</strong></td>
+                                    <td>@Model.FormattedLocal</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Short Format:</strong></td>
+                                    <td>@Model.FormattedShort</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Date Only:</strong></td>
+                                    <td>@Model.FormattedDate</td>
+                                </tr>
+                            </table>
+                        </div>
+                    </div>
+
+                    <hr>
+
+                    <h5 class="text-info">Extension Method Examples</h5>
+                    <table class="table table-striped">
+                        <tr>
+                            <td><strong>DateTime.UtcNow.ToLocalDisplay():</strong></td>
+                            <td>@DateTime.UtcNow.ToLocalDisplay()</td>
+                        </tr>
+                        <tr>
+                            <td><strong>DateTime.UtcNow.ToLocalShort():</strong></td>
+                            <td>@DateTime.UtcNow.ToLocalShort()</td>
+                        </tr>
+                        <tr>
+                            <td><strong>DateTime.UtcNow.ToLocalShortDate():</strong></td>
+                            <td>@DateTime.UtcNow.ToLocalShortDate()</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Custom Format (MMM dd, yyyy 'at' hh:mm tt):</strong></td>
+                            <td>@DateTime.UtcNow.ToLocalDisplay("MMM dd, yyyy 'at' hh:mm tt")</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Nullable DateTime (null):</strong></td>
+                            <td>@((DateTime?)null).ToLocalDisplay()</td>
+                        </tr>
+                    </table>
+
+                    <div class="alert alert-info mt-3">
+                        <h6><i class="fas fa-info-circle me-2"></i>Configuration</h6>
+                        <p class="mb-0">
+                            The timezone offset is configured in <code>appsettings.json</code> under <code>TimezoneSettings:OffsetHours</code>.
+                            Current setting: <strong>UTC+@Model.OffsetHours</strong> (Singapore/Malaysia timezone).
+                        </p>
+                    </div>
+
+                    <div class="alert alert-success mt-3">
+                        <h6><i class="fas fa-check-circle me-2"></i>Usage in Controllers</h6>
+                        <p>Use <code>DateTimeHelper.GetCurrentLocalTime()</code> instead of <code>DateTime.UtcNow.AddHours(8)</code></p>
+                        <pre class="bg-light p-2 rounded"><code>// Old way
+request.ModifiedDate = DateTime.UtcNow.AddHours(8);
+
+// New way with helper
+request.ModifiedDate = DateTimeHelper.GetCurrentLocalTime();</code></pre>
+                    </div>
+
+                    <div class="alert alert-warning mt-3">
+                        <h6><i class="fas fa-lightbulb me-2"></i>Usage in Views</h6>
+                        <p>Use extension methods for easy date formatting in views:</p>
+                        <pre class="bg-light p-2 rounded"><code>// Instead of
+@@request.SubmittedDate?.ToString("MMM dd, yyyy 'at' hh:mm tt")
+
+// Use
+@@request.SubmittedDate.ToLocalDisplay("MMM dd, yyyy 'at' hh:mm tt")</code></pre>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

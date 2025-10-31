@@ -60,7 +60,7 @@
                         </span>
                         <span class="text-muted">
                             <i class="fas fa-clock me-1"></i>
-                            Submitted @Model.Request.SubmittedDate?.ToString("MMM dd, yyyy 'at' hh:mm tt")
+                            Submitted @Model.Request.SubmittedDate.ToLocalDisplay("MMM dd, yyyy 'at' hh:mm tt")
                         </span>
                     </div>
                 </div>
@@ -170,7 +170,7 @@
                                             <i class="fas fa-file text-primary me-3"></i>
                                             <div>
                                                 <div class="fw-medium">@attachment.FileName</div>
-                                                <small class="text-muted">@attachment.FileSize bytes • Uploaded @attachment.UploadDate.ToString("MMM dd, yyyy")</small>
+                                                <small class="text-muted">@attachment.FileSize bytes • Uploaded @attachment.UploadDate.ToLocalShortDate()</small>
                                             </div>
                                         </div>
                                         <a href="@Url.Action("DownloadAttachment", "TradingLimitRequest", new { id = attachment.Id })" 
@@ -262,7 +262,7 @@
                                         By @Model.Request.SubmittedBy
                                     </p>
                                     <small class="text-muted">
-                                        @Model.Request.SubmittedDate?.ToString("MMM dd, yyyy 'at' hh:mm tt")
+                                        @Model.Request.SubmittedDate.ToLocalDisplay("MMM dd, yyyy 'at' hh:mm tt")
                                     </small>
                                 </div>
                             </div>
@@ -326,7 +326,7 @@
                                                     <div class="d-flex align-items-center mb-1">
                                                         <i class="fas fa-check-circle me-2 text-success" style="font-size: 0.8rem;"></i>
                                                         <small class="text-muted">
-                                                            <strong>Completed:</strong> @step.ActionDate?.ToString("MMM dd, yyyy 'at' hh:mm tt")
+                                                            <strong>Completed:</strong> @step.ActionDate.ToLocalDisplay("MMM dd, yyyy 'at' hh:mm tt")
                                                         </small>
                                                     </div>
                                                     @if (step.AssignedDate != default && step.ActionDate.HasValue)
@@ -364,7 +364,7 @@
                                                         <div class="d-flex align-items-center mb-1">
                                                             <i class="fas fa-calendar-alt me-2 @(isOverdue ? "text-danger" : "text-info")" style="font-size: 0.8rem;"></i>
                                                             <small class="text-muted">
-                                                                <strong>Due:</strong> @step.DueDate?.ToString("MMM dd, yyyy 'at' hh:mm tt")
+                                                                <strong>Due:</strong> @step.DueDate.ToLocalDisplay("MMM dd, yyyy 'at' hh:mm tt")
                                                                 @if (isOverdue)
                                                                 {
                                                                     <span class="badge bg-danger bg-opacity-10 text-danger ms-1" style="font-size: 0.7rem;">Overdue</span>
@@ -389,7 +389,7 @@
                                                     <div class="d-flex align-items-center">
                                                         <i class="fas fa-paper-plane me-2 text-info" style="font-size: 0.8rem;"></i>
                                                         <small class="text-muted">
-                                                            <strong>Assigned:</strong> @step.AssignedDate.ToString("MMM dd, yyyy 'at' hh:mm tt")
+                                                            <strong>Assigned:</strong> @step.AssignedDate.ToLocalDisplay("MMM dd, yyyy 'at' hh:mm tt")
                                                         </small>
                                                     </div>
                                                 }
@@ -502,7 +502,7 @@
                                                 <div class="d-flex align-items-center">
                                                     <i class="fas fa-bell me-2 text-primary" style="font-size: 0.8rem;"></i>
                                                     <small class="text-muted">
-                                                        <strong>Notification Sent:</strong> @notification.SentDate.ToString("MMM dd, yyyy 'at' hh:mm tt")
+                                                        <strong>Notification Sent:</strong> @notification.SentDate.ToLocalDisplay("MMM dd, yyyy 'at' hh:mm tt")
                                                     </small>
                                                 </div>
                                                 @if (notification.ReadDate.HasValue)
@@ -510,7 +510,7 @@
                                                     <div class="d-flex align-items-center mt-1">
                                                         <i class="fas fa-eye me-2 text-success" style="font-size: 0.8rem;"></i>
                                                         <small class="text-muted">
-                                                            <strong>Read:</strong> @notification.ReadDate?.ToString("MMM dd, yyyy 'at' hh:mm tt")
+                                                            <strong>Read:</strong> @notification.ReadDate.ToLocalDisplay("MMM dd, yyyy 'at' hh:mm tt")
                                                         </small>
                                                     </div>
                                                 }

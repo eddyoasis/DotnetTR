@@ -143,7 +143,7 @@
                                         var priorityClass = daysSinceSubmission > 3 ? "danger" : daysSinceSubmission > 1 ? "warning" : "success";
                                         var priorityText = daysSinceSubmission > 3 ? "Overdue" : daysSinceSubmission > 1 ? "Due Soon" : "Normal";
                                         
-                                        <tr class="approval-row" data-status="@request.Status" data-amount="@request.GLProposedLimit" data-date="@request.SubmittedDate?.ToString("yyyy-MM-dd")">
+                                        <tr class="approval-row" data-status="@request.Status" data-amount="@request.GLProposedLimit" data-date="@request.SubmittedDate.ToLocalDisplay("yyyy-MM-dd")">
                                             <td class="px-4 py-3">
                                                 <div class="d-flex flex-column">
                                                     <strong class="text-dark">@request.RequestId</strong>
@@ -180,8 +180,8 @@
                                             </td>
                                             <td class="px-4 py-3">
                                                 <div class="d-flex flex-column">
-                                                    <strong class="text-dark">@request.SubmittedDate?.ToString("MMM dd, yyyy")</strong>
-                                                    <small class="text-muted">@request.SubmittedDate?.ToString("hh:mm tt")</small>
+                                                    <strong class="text-dark">@request.SubmittedDate.ToLocalDisplay("MMM dd, yyyy")</strong>
+                                                    <small class="text-muted">@request.SubmittedDate.ToLocalDisplay("hh:mm tt")</small>
                                                     <small class="text-muted">by @request.SubmittedBy</small>
                                                 </div>
                                             </td>

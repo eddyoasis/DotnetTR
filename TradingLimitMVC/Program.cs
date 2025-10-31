@@ -75,6 +75,9 @@ builder.Services.AddLogging();
 
 var app = builder.Build();
 
+// Initialize DateTimeHelper with configuration
+TradingLimitMVC.Helpers.DateTimeHelper.Initialize(app.Configuration);
+
 // Configure the HTTP request pipeline.
 if (!app.Environment.IsDevelopment())
 {

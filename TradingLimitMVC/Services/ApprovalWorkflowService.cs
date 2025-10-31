@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using TradingLimitMVC.Data;
 using TradingLimitMVC.Models;
+using TradingLimitMVC.Helpers;
 
 namespace TradingLimitMVC.Services
 {
@@ -38,7 +39,7 @@ namespace TradingLimitMVC.Services
                     Status = "Pending",
                     CurrentStep = 1,
                     RequiredApprovals = workflowType == "Parallel" ? approvers.Count : 1,
-                    CreatedDate = DateTime.UtcNow
+                    CreatedDate = DateTimeHelper.GetCurrentLocalTime()
                 };
 
                 _context.ApprovalWorkflows.Add(workflow);
@@ -70,7 +71,7 @@ namespace TradingLimitMVC.Services
                         MaximumAmountThreshold = approver.MaximumAmountThreshold,
                         RequiredDepartment = approver.RequiredDepartment,
                         ApprovalConditions = approver.ApprovalConditions,
-                        AssignedDate = DateTime.UtcNow
+                        AssignedDate = DateTimeHelper.GetCurrentLocalTime()
                     };
 
                     _context.ApprovalSteps.Add(step);
@@ -172,7 +173,7 @@ namespace TradingLimitMVC.Services
                 // Update step status
                 step.Status = action;
                 step.Comments = comments;
-                step.ActionDate = DateTime.UtcNow;
+                step.ActionDate = DateTimeHelper.GetCurrentLocalTime();
 
                 // Update workflow based on action
                 var workflow = step.ApprovalWorkflow;
@@ -196,18 +197,18 @@ namespace TradingLimitMVC.Services
                 {
                     // Rejection stops the workflow
                     workflow.Status = "Rejected";
-                    workflow.CompletedDate = DateTime.UtcNow;
+                    workflow.CompletedDate = DateTimeHelper.GetCurrentLocalTime();
                     workflow.TradingLimitRequest.Status = "Rejected";
                 }
                 else if (action == "Revision Required")
                 {
                     // Revision required stops the workflow and returns to requester
                     workflow.Status = "Revision Required";
-                    workflow.CompletedDate = DateTime.UtcNow;
+                    workflow.CompletedDate = DateTimeHelper.GetCurrentLocalTime();
                     workflow.TradingLimitRequest.Status = "Revision Required";
                 }
 
-                workflow.UpdatedDate = DateTime.UtcNow;
+                workflow.UpdatedDate = DateTimeHelper.GetCurrentLocalTime();
                 await _context.SaveChangesAsync();
 
                 _logger.LogInformation("Approval step {StepId} processed by {UserEmail} with action {Action}", 
@@ -314,9 +315,9 @@ namespace TradingLimitMVC.Services
             {
                 // Workflow completed
                 workflow.Status = "Approved";
-                workflow.CompletedDate = DateTime.UtcNow;
+                workflow.CompletedDate = DateTimeHelper.GetCurrentLocalTime();
                 workflow.TradingLimitRequest.Status = "Approved";
-                workflow.TradingLimitRequest.ApprovedDate = DateTime.UtcNow;
+                workflow.TradingLimitRequest.ApprovedDate = DateTimeHelper.GetCurrentLocalTime();
             }
 
             await _context.SaveChangesAsync();
@@ -332,9 +333,9 @@ namespace TradingLimitMVC.Services
             {
                 // All required approvals received
                 workflow.Status = "Approved";
-                workflow.CompletedDate = DateTime.UtcNow;
+                workflow.CompletedDate = DateTimeHelper.GetCurrentLocalTime();
                 workflow.TradingLimitRequest.Status = "Approved";
-                workflow.TradingLimitRequest.ApprovedDate = DateTime.UtcNow;
+                workflow.TradingLimitRequest.ApprovedDate = DateTimeHelper.GetCurrentLocalTime();
                 
                 await _context.SaveChangesAsync();
                 return true;
